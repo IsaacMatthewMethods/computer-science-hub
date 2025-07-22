@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { Navigation } from "@/components/Navigation";
 import { StudentDashboard } from "@/components/StudentDashboard";
 import { LecturerDashboard } from "@/components/LecturerDashboard";
@@ -11,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import { 
   User, 
   Mail, 
@@ -25,31 +29,125 @@ import {
   TrendingUp,
   Award,
   Target,
+  LogOut,
 } from "lucide-react";
 
 const Index = () => {
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [userType, setUserType] = useState<"student" | "lecturer">("student");
-  const [userName, setUserName] = useState("John Doe");
+  const [userName, setUserName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
 
-  // Mock user profile data
+  // User profile data from database
   const [userProfile, setUserProfile] = useState({
-    name: "John Doe",
-    email: "john.doe@university.edu",
-    phone: "+1 (555) 123-4567",
-    location: "Computer Science Department",
-    joinDate: "September 2023",
-    bio: "Passionate computer science student interested in machine learning and web development. Always eager to collaborate on exciting projects.",
-    course: userType === "student" ? "Bachelor of Computer Science" : "Professor of Computer Science",
-    year: userType === "student" ? "3rd Year" : "Department Head",
-    skills: ["Python", "JavaScript", "React", "Machine Learning", "Database Design"],
-    achievements: [
-      "Dean's List Fall 2023",
-      "Best Project Award CS401",
-      "Hackathon Winner 2023",
-    ],
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
+    joinDate: "",
+    bio: "",
+    course: "",
+    year: "",
+    skills: [] as string[],
+    achievements: [] as string[],
   });
+
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data: profileData, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching profile:", error);
+        return;
+      }
+
+      if (profileData) {
+        setProfile(profileData);
+        // Map database roles to component types
+        const mappedRole: "student" | "lecturer" = 
+          profileData.role === "student" ? "student" :
+          profileData.role === "counselor" || profileData.role === "admin" ? "lecturer" :
+          "student";
+        setUserType(mappedRole);
+        setUserName(`${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || user.email || "");
+        setUserProfile({
+          name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || user.email || "",
+          email: profileData.email || user.email || "",
+          phone: "",
+          location: profileData.university || "",
+          joinDate: new Date(profileData.created_at).toLocaleDateString("en-US", { 
+            year: "numeric", 
+            month: "long" 
+          }),
+          bio: profileData.bio || "",
+          course: profileData.course || (profileData.role === "student" ? "Bachelor's Degree" : "Professor"),
+          year: profileData.education_level || (profileData.role === "student" ? "3rd Year" : "Department Head"),
+          skills: [],
+          achievements: [],
+        });
+      } else {
+        // Create profile if it doesn't exist
+        await createUserProfile();
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
+
+  const createUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .insert({
+          id: user.id,
+          email: user.email || "",
+          first_name: user.user_metadata?.first_name || "",
+          last_name: user.user_metadata?.last_name || "",
+          role: user.user_metadata?.role || "student",
+        });
+
+      if (error) {
+        console.error("Error creating profile:", error);
+      } else {
+        fetchUserProfile();
+      }
+    } catch (error) {
+      console.error("Error creating profile:", error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error signing out",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -57,7 +155,6 @@ const Index = () => {
 
   const toggleUserType = () => {
     setUserType(userType === "student" ? "lecturer" : "student");
-    setUserName(userType === "student" ? "Dr. Sarah Smith" : "John Doe");
   };
 
   const renderProfile = () => (
@@ -272,11 +369,15 @@ const Index = () => {
             <Card className="shadow-soft">
               <CardHeader>
                 <CardTitle>Account Type</CardTitle>
-                <CardDescription>Switch between student and lecturer view</CardDescription>
+                <CardDescription>Switch between student and lecturer view (Demo only)</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button onClick={toggleUserType} className="bg-gradient-primary hover-glow">
+              <CardContent className="space-y-4">
+                <Button onClick={toggleUserType} variant="outline" className="w-full">
                   Switch to {userType === "student" ? "Lecturer" : "Student"} View
+                </Button>
+                <Button onClick={handleSignOut} variant="destructive" className="w-full">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
                 </Button>
               </CardContent>
             </Card>
@@ -292,17 +393,19 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation
-        userType={userType}
-        userName={userName}
-        onNavigate={handleNavigate}
-        currentPage={currentPage}
-      />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {renderCurrentPage()}
-      </main>
-    </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-background">
+        <Navigation
+          userType={userType}
+          userName={userName}
+          onNavigate={handleNavigate}
+          currentPage={currentPage}
+        />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {renderCurrentPage()}
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 };
 
