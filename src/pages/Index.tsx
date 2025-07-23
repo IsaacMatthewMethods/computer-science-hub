@@ -32,6 +32,19 @@ import {
   LogOut,
 } from "lucide-react";
 
+interface UserProfileData {
+  id: string;
+  email: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  university?: string;
+  created_at: string;
+  bio?: string;
+  course?: string;
+  education_level?: string;
+}
+
 const Index = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -39,7 +52,7 @@ const Index = () => {
   const [userType, setUserType] = useState<"student" | "lecturer">("student");
   const [userName, setUserName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfileData | null>(null);
 
   // User profile data from database
   const [userProfile, setUserProfile] = useState({
@@ -55,83 +68,10 @@ const Index = () => {
     achievements: [] as string[],
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchUserProfile();
-    }
-  }, [user]);
+  
 
-  const fetchUserProfile = async () => {
-    if (!user) return;
+  
 
-    try {
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        console.error("Error fetching profile:", error);
-        return;
-      }
-
-      if (profileData) {
-        setProfile(profileData);
-        // Map database roles to component types
-        const mappedRole: "student" | "lecturer" = 
-          profileData.role === "student" ? "student" :
-          profileData.role === "counselor" || profileData.role === "admin" ? "lecturer" :
-          "student";
-        setUserType(mappedRole);
-        setUserName(`${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || user.email || "");
-        setUserProfile({
-          name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim() || user.email || "",
-          email: profileData.email || user.email || "",
-          phone: "",
-          location: profileData.university || "",
-          joinDate: new Date(profileData.created_at).toLocaleDateString("en-US", { 
-            year: "numeric", 
-            month: "long" 
-          }),
-          bio: profileData.bio || "",
-          course: profileData.course || (profileData.role === "student" ? "Bachelor's Degree" : "Professor"),
-          year: profileData.education_level || (profileData.role === "student" ? "3rd Year" : "Department Head"),
-          skills: [],
-          achievements: [],
-        });
-      } else {
-        // Create profile if it doesn't exist
-        await createUserProfile();
-      }
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    }
-  };
-
-  const createUserProfile = async () => {
-    if (!user) return;
-
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .insert({
-          id: user.id,
-          email: user.email || "",
-          first_name: user.user_metadata?.first_name || "",
-          last_name: user.user_metadata?.last_name || "",
-          role: user.user_metadata?.role || "student",
-        });
-
-      if (error) {
-        console.error("Error creating profile:", error);
-      } else {
-        fetchUserProfile();
-      }
-    } catch (error) {
-      console.error("Error creating profile:", error);
-    }
-  };
 
   const handleSignOut = async () => {
     try {

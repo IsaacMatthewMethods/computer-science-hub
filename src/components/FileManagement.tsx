@@ -36,20 +36,15 @@ interface FileItem {
   id: string;
   name: string;
   type: "document" | "image" | "video" | "audio" | "other";
-  size: string;
+  size: number; // Size in bytes
   dateAdded: string;
-  sharedBy: string;
-  course: string;
+  sharedBy: string; // User ID of the uploader
+  course: string; // Associated course, if any
   downloadCount: number;
   isShared: boolean;
   isPublished: boolean;
-}
-
-interface FolderItem {
-  id: string;
-  name: string;
-  filesCount: number;
-  dateCreated: string;
+  url: string; // Supabase storage URL
+  user_id: string; // ID of the user who uploaded the file
 }
 
 interface FileManagementProps {
@@ -60,7 +55,7 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
-  const [storageUsed] = useState(42);
+  const [storageUsed, setStorageUsed] = useState(0);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,27 +63,59 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
     if (user) {
       fetchFiles();
     }
-  }, [user]);
+  }, [user, fetchFiles]);
 
-  const fetchFiles = async () => {
+  const fetchFiles = React.useCallback(async () => {
     try {
-      // For now, just show mock data since the files table doesn't exist yet
-      const mockFiles: FileItem[] = [
-        {
-          id: "1",
-          name: "Sample Document.pdf",
-          type: "document",
-          size: "2.4 MB",
-          dateAdded: "2024-01-15",
-          sharedBy: "You",
-          course: "Computer Science",
-          downloadCount: 0,
-          isShared: false,
-          isPublished: false,
-        },
-      ];
-      
-      setFiles(mockFiles);
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("files")
+        .select("id, name, type, size, created_at, user_id, is_shared, is_published, download_count, course");
+
+      if (error) {
+        console.error("Error fetching files:", error);
+        toast({
+          title: "Error loading files",
+          description: "Please try again later.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formattedFiles: FileItem[] = await Promise.all(data.map(async (file) => {
+        const { data: publicUrlData } = supabase
+          .storage
+          .from("files")
+          .getPublicUrl(`${file.user_id}/${file.name}`);
+
+        // Fetch uploader's name
+        const { data: uploaderProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", file.user_id)
+          .single();
+
+        return {
+          id: file.id,
+          name: file.name,
+          type: file.type as FileItem["type"],
+          size: file.size,
+          dateAdded: new Date(file.created_at).toLocaleDateString(),
+          sharedBy: uploaderProfile?.full_name || "Unknown",
+          course: file.course || "N/A",
+          downloadCount: file.download_count,
+          isShared: file.is_shared,
+          isPublished: file.is_published,
+          url: publicUrlData?.publicUrl || "#",
+          user_id: file.user_id,
+        };
+      }));
+
+      setFiles(formattedFiles);
+      // Calculate storage used (simple sum for now)
+      const totalSize = formattedFiles.reduce((sum, file) => sum + file.size, 0);
+      setStorageUsed(Math.min(100, Math.round((totalSize / (500 * 1024 * 1024)) * 100))); // Assuming 500MB limit
+
     } catch (error) {
       console.error("Error fetching files:", error);
       toast({
@@ -99,7 +126,7 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, toast]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -109,33 +136,7 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Mock folders for now
-  const folders: FolderItem[] = [
-    {
-      id: "1",
-      name: "Computer Science",
-      filesCount: 24,
-      dateCreated: "2024-01-01",
-    },
-    {
-      id: "2",
-      name: "Mathematics",
-      filesCount: 18,
-      dateCreated: "2024-01-02",
-    },
-    {
-      id: "3",
-      name: "Physics",
-      filesCount: 31,
-      dateCreated: "2024-01-03",
-    },
-    {
-      id: "4",
-      name: "Projects",
-      filesCount: 12,
-      dateCreated: "2024-01-04",
-    },
-  ];
+  
 
   const getFileIcon = (type: FileItem["type"]) => {
     switch (type) {
@@ -176,29 +177,56 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
   };
 
   const uploadFiles = async (filesToUpload: File[]) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to upload files.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     for (const file of filesToUpload) {
+      const filePath = `${user.id}/${file.name}`;
       try {
+        const { error: uploadError } = await supabase.storage
+          .from("files")
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const fileType = getFileTypeFromMime(file.type);
+
+        const { error: insertError } = await supabase
+          .from("files")
+          .insert({
+            name: file.name,
+            type: fileType,
+            size: file.size,
+            user_id: user.id,
+            // Add other fields as necessary, e.g., course, is_shared, is_published
+          });
+
+        if (insertError) throw insertError;
+
         toast({
           title: "File uploaded",
-          description: `${file.name} has been uploaded successfully. (Demo mode)`,
+          description: `${file.name} has been uploaded successfully.`,
         });
-      } catch (error) {
+      } catch (error: Error) {
         console.error("Error uploading file:", error);
         toast({
           title: "Upload failed",
-          description: `Failed to upload ${file.name}`,
+          description: `Failed to upload ${file.name}: ${error.message}`,
           variant: "destructive",
         });
       }
     }
-    
-    // Refresh files list
-    fetchFiles();
+
+    fetchFiles(); // Refresh the file list after uploads
   };
 
-  const getFileTypeFromMime = (mimeType: string): string => {
+  const getFileTypeFromMime = (mimeType: string): FileItem["type"] => {
     if (mimeType.startsWith('image/')) return 'image';
     if (mimeType.startsWith('video/')) return 'video';
     if (mimeType.startsWith('audio/')) return 'audio';
@@ -206,18 +234,33 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
     return 'other';
   };
 
-  const handleDeleteFile = async (fileId: string) => {
+  const handleDeleteFile = async (fileId: string, fileName: string, userId: string) => {
     try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from("files")
+        .remove([`${userId}/${fileName}`]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from("files")
+        .delete()
+        .eq("id", fileId);
+
+      if (dbError) throw dbError;
+
       toast({
         title: "File deleted",
-        description: "The file has been deleted successfully. (Demo mode)",
+        description: "The file has been deleted successfully.",
       });
       fetchFiles();
-    } catch (error) {
+    } catch (error: Error) {
       console.error("Error deleting file:", error);
       toast({
         title: "Delete failed",
-        description: "Failed to delete the file.",
+        description: `Failed to delete the file: ${error.message}`,
         variant: "destructive",
       });
     }
@@ -235,10 +278,21 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
             </div>
             <p className="text-sm">{storageUsed}% of 500MB</p>
           </div>
-          <Button>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload
-          </Button>
+          <label htmlFor="file-upload-btn">
+            <Button asChild>
+              <span className="cursor-pointer">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload
+              </span>
+            </Button>
+            <input
+              id="file-upload-btn"
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+          </label>
           <Button variant="outline">
             <FolderPlus className="h-4 w-4 mr-2" />
             New Folder
@@ -260,7 +314,6 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="all">All Files</TabsTrigger>
-          <TabsTrigger value="folders">Folders</TabsTrigger>
           <TabsTrigger value="shared">Shared</TabsTrigger>
           {userType === "lecturer" && (
             <TabsTrigger value="published">Published Resources</TabsTrigger>
@@ -371,51 +424,7 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="folders" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {folders.map((folder) => (
-              <Card key={folder.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <Folder className="h-8 w-8 text-primary" />
-                    <div>
-                      <h3 className="font-medium">{folder.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {folder.filesCount} files
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">
-                      {folder.dateCreated}
-                    </span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Open
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
+        
 
         <TabsContent value="shared" className="space-y-4">
           <Card>
@@ -502,7 +511,7 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
                         <TableCell>{file.dateAdded}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" onClick={() => window.open(file.url, "_blank")}>
                               <Eye className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="sm">

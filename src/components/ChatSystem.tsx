@@ -32,14 +32,14 @@ interface ChatMessage {
 interface ChatContact {
   id: string;
   name: string;
-  course: string;
-  role: string;
-  status: "online" | "offline" | "away";
-  lastSeen: string;
+  course?: string; // Optional, as not all profiles might have a course
+  role?: string; // Optional
+  status?: "online" | "offline" | "away"; // Optional, for future presence features
+  lastSeen?: string; // Optional
   avatar?: string;
-  lastMessage: string;
-  lastMessageTime: string;
-  unreadCount: number;
+  lastMessage?: string;
+  lastMessageTime?: string;
+  unreadCount?: number;
   isGroup: boolean;
 }
 
@@ -62,15 +62,16 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
   useEffect(() => {
     if (user) {
       fetchConversations();
+      fetchAllUsers();
       setupRealtimeSubscription();
     }
-  }, [user]);
+  }, [user, fetchConversations, fetchAllUsers, setupRealtimeSubscription]);
 
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat.id);
     }
-  }, [selectedChat]);
+  }, [selectedChat, fetchMessages, user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -82,35 +83,35 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
 
   const fetchConversations = async () => {
     try {
-      // This is a simplified version - in reality you'd join with profiles to get user details
-      const contacts: ChatContact[] = [
-        {
-          id: "1",
-          name: "Dr. Sarah Wilson",
-          course: "Computer Science",
-          role: "Lecturer",
-          status: "online",
-          lastSeen: "now",
-          avatar: "/api/placeholder/40/40",
-          lastMessage: "Great work on your assignment!",
-          lastMessageTime: "2 min ago",
-          unreadCount: 0,
-          isGroup: false,
-        },
-        {
-          id: "2",
-          name: "Study Group - AI Ethics",
-          course: "Philosophy",
-          role: "Student",
-          status: "online",
-          lastSeen: "now",
-          avatar: "/api/placeholder/40/40",
-          lastMessage: "Meeting tomorrow at 3 PM",
-          lastMessageTime: "5 min ago",
-          unreadCount: 3,
-          isGroup: true,
-        },
-      ];
+      setLoading(true);
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, role, course, avatar_url")
+        .neq("id", user?.id); // Exclude current user from contacts list
+
+      if (error) {
+        console.error("Error fetching profiles:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load contacts.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const contacts: ChatContact[] = profiles.map((profile) => ({
+        id: profile.id,
+        name: profile.full_name || "Unknown User",
+        course: profile.course || "N/A", // Assuming 'course' might be in profiles
+        role: profile.role || "User", // Assuming 'role' might be in profiles
+        status: "offline", // Placeholder for now
+        lastSeen: "", // Placeholder for now
+        avatar: profile.avatar_url || "/api/placeholder/40/40",
+        lastMessage: "No messages yet", // Placeholder for now
+        lastMessageTime: "", // Placeholder for now
+        unreadCount: 0, // Placeholder for now
+        isGroup: false, // Assuming 1-on-1 chats for now
+      }));
       setConversations(contacts);
     } catch (error) {
       console.error("Error fetching conversations:", error);
@@ -119,11 +120,13 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
     }
   };
 
-  const fetchMessages = async (conversationId: string) => {
+  const fetchMessages = React.useCallback(async (contactId: string) => {
     try {
+      if (!user?.id) return;
+      const conversationId = getConversationId(user.id, contactId);
       const { data, error } = await supabase
         .from("messages")
-        .select("*")
+        .select("*, sender:profiles(full_name)") // Fetch sender's full_name
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
 
@@ -135,11 +138,11 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
       const formattedMessages: ChatMessage[] = data.map((msg) => ({
         id: msg.id,
         senderId: msg.sender_id,
-        senderName: msg.sender_id === user?.id ? userName : "Other User",
+        senderName: msg.sender?.full_name || "Unknown User", // Use fetched sender name
         content: msg.content,
-        timestamp: new Date(msg.created_at).toLocaleTimeString([], { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        timestamp: new Date(msg.created_at).toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         status: msg.is_read ? "read" : "sent",
       }));
@@ -148,9 +151,9 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
     } catch (error) {
       console.error("Error fetching messages:", error);
     }
-  };
+  }, [user]);
 
-  const setupRealtimeSubscription = () => {
+  const setupRealtimeSubscription = React.useCallback(() => {
     const channel = supabase
       .channel('schema-db-changes')
       .on(
@@ -161,20 +164,23 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
           table: 'messages'
         },
         (payload) => {
-          const newMessage: ChatMessage = {
-            id: payload.new.id,
-            senderId: payload.new.sender_id,
-            senderName: payload.new.sender_id === user?.id ? userName : "Other User",
-            content: payload.new.content,
-            timestamp: new Date(payload.new.created_at).toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            }),
-            status: "sent",
-          };
-          
-          if (selectedChat && payload.new.conversation_id === selectedChat.id) {
-            setMessages(prev => [...prev, newMessage]);
+          if (selectedChat && user) { // Ensure user is not null
+            const expectedConversationId = getConversationId(user.id, selectedChat.id);
+            if (payload.new.conversation_id === expectedConversationId) {
+              const senderProfile = allUsers.find(u => u.id === payload.new.sender_id);
+              const newMessage: ChatMessage = {
+                id: payload.new.id,
+                senderId: payload.new.sender_id,
+                senderName: senderProfile?.name || "Unknown User",
+                content: payload.new.content,
+                timestamp: new Date(payload.new.created_at).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }),
+                status: "sent",
+              };
+              setMessages(prev => [...prev, newMessage]);
+            }
           }
         }
       )
@@ -183,16 +189,50 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
+  }, [selectedChat, user, allUsers]);
+
+  const fetchAllUsers = React.useCallback(async () => {
+    try {
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, role, course, avatar_url")
+        .neq("id", user?.id); // Exclude current user
+
+      if (error) {
+        console.error("Error fetching all users:", error);
+        return;
+      }
+
+      const users: ChatContact[] = profiles.map((profile) => ({
+        id: profile.id,
+        name: profile.full_name || "Unknown User",
+        course: profile.course || "N/A",
+        role: profile.role || "User",
+        status: "offline",
+        avatar: profile.avatar_url || "/api/placeholder/40/40",
+        isGroup: false,
+      }));
+      setAllUsers(users);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+    }
+  }, [user]);
+
+  const handleSelectNewChat = (contact: ChatContact) => {
+    setSelectedChat(contact);
+    setShowNewChat(false);
+    setSearchTerm(""); // Clear search term
   };
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChat || !user) return;
 
     try {
+      const conversationId = getConversationId(user.id, selectedChat.id);
       const { error } = await supabase
         .from("messages")
         .insert({
-          conversation_id: selectedChat.id,
+          conversation_id: conversationId,
           sender_id: user.id,
           content: messageInput.trim(),
         });
@@ -225,16 +265,11 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
     }
   };
 
-  const filteredContacts = conversations.filter(contact =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.course.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-foreground">Messages</h1>
-        <Button>
+        <Button onClick={() => setShowNewChat(true)}>
           <MessageSquare className="h-4 w-4 mr-2" />
           New Chat
         </Button>
@@ -244,11 +279,18 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
         {/* Contacts Sidebar */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-3">
-            <CardTitle>Conversations</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>{showNewChat ? "Start New Chat" : "Conversations"}</CardTitle>
+              {showNewChat && (
+                <Button variant="ghost" size="icon" onClick={() => setShowNewChat(false)}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search conversations..."
+                placeholder={showNewChat ? "Search users..." : "Search conversations..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
@@ -261,48 +303,81 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 </div>
-              ) : (
+              ) : showNewChat ? (
                 <div className="space-y-1 p-4">
-                  {filteredContacts.map((contact) => (
-                    <div
-                      key={contact.id}
-                      onClick={() => setSelectedChat(contact)}
-                      className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent ${
-                        selectedChat?.id === contact.id ? "bg-accent" : ""
-                      }`}
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={contact.avatar} />
-                        <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium truncate">{contact.name}</p>
-                          <div className="flex items-center space-x-1">
-                            {contact.status === "online" && (
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            )}
-                            {contact.unreadCount > 0 && (
-                              <Badge variant="destructive" className="h-5 w-5 text-xs p-0 flex items-center justify-center">
-                                {contact.unreadCount}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {contact.lastMessage}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <Badge variant="outline" className="text-xs">
-                            {contact.course}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {contact.lastMessageTime}
-                          </span>
+                  {filteredUsers.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No users found.</p>
+                  ) : (
+                    filteredUsers.map((userContact) => (
+                      <div
+                        key={userContact.id}
+                        onClick={() => handleSelectNewChat(userContact)}
+                        className="flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent"
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={userContact.avatar} />
+                          <AvatarFallback>{userContact.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{userContact.name}</p>
+                          {userContact.course && (
+                            <Badge variant="outline" className="text-xs">
+                              {userContact.course}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-1 p-4">
+                  {filteredContacts.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4">No conversations found.</p>
+                  ) : (
+                    filteredContacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        onClick={() => setSelectedChat(contact)}
+                        className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-colors hover:bg-accent ${
+                          selectedChat?.id === contact.id ? "bg-accent" : ""
+                        }`}
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={contact.avatar} />
+                          <AvatarFallback>{contact.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium truncate">{contact.name}</p>
+                            <div className="flex items-center space-x-1">
+                              {contact.status === "online" && (
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              )}
+                              {contact.unreadCount && contact.unreadCount > 0 && (
+                                <Badge variant="destructive" className="h-5 w-5 text-xs p-0 flex items-center justify-center">
+                                  {contact.unreadCount}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {contact.lastMessage || "No messages yet"}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            {contact.course && (
+                              <Badge variant="outline" className="text-xs">
+                                {contact.course}
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {contact.lastMessageTime}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </ScrollArea>
@@ -324,12 +399,18 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
                     <div>
                       <h3 className="font-semibold">{selectedChat.name}</h3>
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <div className={`w-2 h-2 rounded-full ${
-                          selectedChat.status === "online" ? "bg-green-500" : "bg-gray-400"
-                        }`}></div>
-                        <span>{selectedChat.status}</span>
-                        <span>•</span>
-                        <span>{selectedChat.course}</span>
+                        {selectedChat.status && (
+                          <div className={`w-2 h-2 rounded-full ${
+                            selectedChat.status === "online" ? "bg-green-500" : "bg-gray-400"
+                          }`}></div>
+                        )}
+                        <span>{selectedChat.status || "Offline"}</span>
+                        {selectedChat.course && (
+                          <>
+                            <span>•</span>
+                            <span>{selectedChat.course}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
