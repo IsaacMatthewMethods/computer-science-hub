@@ -57,7 +57,69 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [conversations, setConversations] = useState<ChatContact[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  import React, { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { getConversationId } from "@/lib/utils"; // Import the utility function
+import {
+  Search,
+  Send,
+  Phone,
+  Video,
+  MoreVertical,
+  Users,
+  MessageSquare,
+  ArrowLeft,
+} from "lucide-react";
+
+interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  timestamp: string;
+  status: "sent" | "delivered" | "read";
+}
+
+interface ChatContact {
+  id: string;
+  name: string;
+  course?: string; // Optional, as not all profiles might have a course
+  role?: string; // Optional
+  status?: "online" | "offline" | "away"; // Optional, for future presence features
+  lastSeen?: string; // Optional
+  avatar?: string;
+  lastMessage?: string;
+  lastMessageTime?: string;
+  unreadCount?: number;
+  isGroup: boolean;
+}
+
+interface ChatSystemProps {
+  userType: "student" | "lecturer";
+  userName: string;
+}
+
+export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedChat, setSelectedChat] = useState<ChatContact | null>(null);
+  const [messageInput, setMessageInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [conversations, setConversations] = useState<ChatContact[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState<ChatContact[]>([]); // State to hold all users for new chat
+  const [showNewChat, setShowNewChat] = useState(false); // State to toggle between conversations and new chat
 
   useEffect(() => {
     if (user) {
@@ -65,13 +127,13 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
       fetchAllUsers();
       setupRealtimeSubscription();
     }
-  }, [user, fetchConversations, fetchAllUsers, setupRealtimeSubscription]);
+  }, [user]);
 
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat.id);
     }
-  }, [selectedChat, fetchMessages, user]);
+  }, [selectedChat, user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -264,6 +326,14 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
       handleSendMessage();
     }
   };
+
+  const filteredUsers = allUsers.filter((userContact) =>
+    userContact.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredContacts = conversations.filter((contact) =>
+    contact.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 animate-fade-in">
