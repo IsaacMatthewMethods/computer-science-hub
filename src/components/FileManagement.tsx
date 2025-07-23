@@ -1,44 +1,48 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  File,
-  FileText,
-  Film,
-  Image as ImageIcon,
-  MoreVertical,
-  Download,
-  Trash,
-  Share,
-  Link,
   Upload,
   FolderPlus,
   Search,
   Filter,
-  BookOpen,
-  ListFilter,
-  Code,
+  Download,
+  Share2,
+  Trash2,
+  File,
+  FileText,
+  Image,
+  Video,
+  Music,
+  Archive,
+  MoreHorizontal,
+  Eye,
+  Calendar,
+  Users,
+  Folder,
+  FileIcon,
 } from "lucide-react";
 
 interface FileItem {
   id: string;
   name: string;
-  type: "document" | "image" | "video" | "pdf" | "code" | "other";
+  type: "document" | "image" | "video" | "audio" | "other";
   size: string;
   dateAdded: string;
-  shared: boolean;
-  category?: string;
-  course?: string;
+  sharedBy: string;
+  course: string;
+  downloadCount: number;
+  isShared: boolean;
+  isPublished: boolean;
 }
 
 interface FolderItem {
@@ -52,108 +56,99 @@ interface FileManagementProps {
   userType: "student" | "lecturer";
 }
 
-export function FileManagement({ userType }: FileManagementProps) {
+export const FileManagement = ({ userType }: FileManagementProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
-  const [storageUsed, setStorageUsed] = useState(45);
+  const [storageUsed] = useState(42);
+  const [files, setFiles] = useState<FileItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const files: FileItem[] = [
-    {
-      id: "file1",
-      name: "Data Structures Assignment.pdf",
-      type: "pdf",
-      size: "2.5 MB",
-      dateAdded: "Today",
-      shared: true,
-      course: "CS301",
-    },
-    {
-      id: "file2",
-      name: "Algorithm Analysis Slides.pdf",
-      type: "pdf",
-      size: "4.7 MB",
-      dateAdded: "Yesterday",
-      shared: true,
-      course: "CS301",
-    },
-    {
-      id: "file3",
-      name: "Project Documentation.docx",
-      type: "document",
-      size: "1.2 MB",
-      dateAdded: "2 days ago",
-      shared: false,
-      course: "CS401",
-    },
-    {
-      id: "file4",
-      name: "Neural Networks Visualization.png",
-      type: "image",
-      size: "3.8 MB",
-      dateAdded: "3 days ago",
-      shared: true,
-      course: "CS502",
-    },
-    {
-      id: "file5",
-      name: "Database Tutorial.mp4",
-      type: "video",
-      size: "78.5 MB",
-      dateAdded: "1 week ago",
-      shared: true,
-      course: "CS401",
-    },
-    {
-      id: "file6",
-      name: "Machine Learning Model.ipynb",
-      type: "code",
-      size: "1.1 MB",
-      dateAdded: "1 week ago",
-      shared: false,
-      course: "CS502",
-    },
-  ];
+  useEffect(() => {
+    if (user) {
+      fetchFiles();
+    }
+  }, [user]);
 
+  const fetchFiles = async () => {
+    try {
+      // For now, just show mock data since the files table doesn't exist yet
+      const mockFiles: FileItem[] = [
+        {
+          id: "1",
+          name: "Sample Document.pdf",
+          type: "document",
+          size: "2.4 MB",
+          dateAdded: "2024-01-15",
+          sharedBy: "You",
+          course: "Computer Science",
+          downloadCount: 0,
+          isShared: false,
+          isPublished: false,
+        },
+      ];
+      
+      setFiles(mockFiles);
+    } catch (error) {
+      console.error("Error fetching files:", error);
+      toast({
+        title: "Error loading files",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Mock folders for now
   const folders: FolderItem[] = [
     {
-      id: "folder1",
-      name: "Assignments",
-      filesCount: 12,
-      dateCreated: "2 weeks ago",
-    },
-    {
-      id: "folder2",
-      name: "Lecture Notes",
+      id: "1",
+      name: "Computer Science",
       filesCount: 24,
-      dateCreated: "1 month ago",
+      dateCreated: "2024-01-01",
     },
     {
-      id: "folder3",
-      name: "Project Resources",
-      filesCount: 8,
-      dateCreated: "3 weeks ago",
+      id: "2",
+      name: "Mathematics",
+      filesCount: 18,
+      dateCreated: "2024-01-02",
     },
     {
-      id: "folder4",
-      name: "Shared with Me",
-      filesCount: 16,
-      dateCreated: "2 months ago",
+      id: "3",
+      name: "Physics",
+      filesCount: 31,
+      dateCreated: "2024-01-03",
+    },
+    {
+      id: "4",
+      name: "Projects",
+      filesCount: 12,
+      dateCreated: "2024-01-04",
     },
   ];
 
   const getFileIcon = (type: FileItem["type"]) => {
     switch (type) {
       case "document":
-        return <FileText className="h-5 w-5 text-blue-500" />;
+        return <FileText className="h-4 w-4 text-blue-500" />;
       case "image":
-        return <ImageIcon className="h-5 w-5 text-green-500" />;
+        return <Image className="h-4 w-4 text-green-500" />;
       case "video":
-        return <Film className="h-5 w-5 text-purple-500" />;
-      case "pdf":
-        return <File className="h-5 w-5 text-red-500" />;
-      case "code":
-        return <Code className="h-5 w-5 text-orange-500" />;
+        return <Video className="h-4 w-4 text-purple-500" />;
+      case "audio":
+        return <Music className="h-4 w-4 text-orange-500" />;
       default:
-        return <File className="h-5 w-5 text-gray-500" />;
+        return <File className="h-4 w-4 text-gray-500" />;
     }
   };
 
@@ -166,41 +161,72 @@ export function FileManagement({ userType }: FileManagementProps) {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-
-    // Handle file drop logic here
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    console.log("Files dropped:", droppedFiles);
-
-    // In a real implementation, you would process these files
-    // But for this demo, we'll just log them
+    const files = Array.from(e.dataTransfer.files);
+    await uploadFiles(files);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const uploadedFiles = Array.from(e.target.files);
-      console.log("Files selected:", uploadedFiles);
-      
-      // In a real implementation, you would process these files
-      // But for this demo, we'll just log them
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      await uploadFiles(Array.from(files));
+    }
+  };
+
+  const uploadFiles = async (filesToUpload: File[]) => {
+    if (!user) return;
+
+    for (const file of filesToUpload) {
+      try {
+        toast({
+          title: "File uploaded",
+          description: `${file.name} has been uploaded successfully. (Demo mode)`,
+        });
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        toast({
+          title: "Upload failed",
+          description: `Failed to upload ${file.name}`,
+          variant: "destructive",
+        });
+      }
+    }
+    
+    // Refresh files list
+    fetchFiles();
+  };
+
+  const getFileTypeFromMime = (mimeType: string): string => {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.includes('pdf') || mimeType.includes('document') || mimeType.includes('text')) return 'document';
+    return 'other';
+  };
+
+  const handleDeleteFile = async (fileId: string) => {
+    try {
+      toast({
+        title: "File deleted",
+        description: "The file has been deleted successfully. (Demo mode)",
+      });
+      fetchFiles();
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete the file.",
+        variant: "destructive",
+      });
     }
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col md:flex-row justify-between space-y-4 md:space-y-0">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {userType === "student" ? "My Files" : "Resource Management"}
-          </h1>
-          <p className="text-muted-foreground">
-            {userType === "student"
-              ? "Manage and access your files and resources"
-              : "Organize and share resources with students"}
-          </p>
-        </div>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-foreground">File Management</h1>
         <div className="flex items-center space-x-2">
           <div className="bg-card border border-border rounded-lg px-3 py-1 flex items-center text-sm">
             <p className="text-muted-foreground mr-2">Storage:</p>
@@ -209,53 +235,26 @@ export function FileManagement({ userType }: FileManagementProps) {
             </div>
             <p className="text-sm">{storageUsed}% of 500MB</p>
           </div>
-          <Button size="sm" className="bg-gradient-primary hover-glow">
+          <Button>
             <Upload className="h-4 w-4 mr-2" />
             Upload
           </Button>
-          <Button size="sm" variant="outline" className="hover-lift">
+          <Button variant="outline">
             <FolderPlus className="h-4 w-4 mr-2" />
             New Folder
           </Button>
         </div>
       </div>
 
-      <div className="bg-card rounded-lg border border-border p-4 mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search files..."
-              className="pl-8 pr-4 py-2 w-full bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" className="flex items-center">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center">
-              <ListFilter className="h-4 w-4 mr-2" />
-              Sort
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Course
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>All Courses</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>CS301 - Data Structures</DropdownMenuItem>
-                <DropdownMenuItem>CS401 - Database Systems</DropdownMenuItem>
-                <DropdownMenuItem>CS502 - Machine Learning</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+      <div className="flex items-center space-x-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search files..." className="pl-8" />
         </div>
+        <Button variant="outline" size="sm">
+          <Filter className="h-4 w-4 mr-2" />
+          Filter
+        </Button>
       </div>
 
       <Tabs defaultValue="all" className="w-full">
@@ -270,20 +269,22 @@ export function FileManagement({ userType }: FileManagementProps) {
 
         <TabsContent value="all" className="space-y-4">
           {/* File Upload Area */}
-          <div 
-            className={`file-upload-area ${isDragging ? "drag-over" : ""} animate-scale-in`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="flex flex-col items-center">
-              <Upload className="h-10 w-10 text-muted-foreground mb-2" />
-              <h3 className="text-lg font-medium">Drag and drop files here</h3>
-              <p className="text-muted-foreground mb-4">or</p>
-              <label htmlFor="file-upload" className="cursor-pointer">
-                <div className="bg-gradient-primary text-primary-foreground px-4 py-2 rounded-lg hover-glow transition-all duration-300">
+          <Card className={`border-2 border-dashed transition-colors ${isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"}`}>
+            <CardContent
+              className="p-8 text-center"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Upload Files</h3>
+              <p className="text-muted-foreground mb-4">
+                Drag and drop files here, or click to browse
+              </p>
+              <label htmlFor="file-upload">
+                <Button variant="outline" className="cursor-pointer">
                   Browse Files
-                </div>
+                </Button>
                 <input
                   id="file-upload"
                   type="file"
@@ -292,313 +293,227 @@ export function FileManagement({ userType }: FileManagementProps) {
                   onChange={handleFileUpload}
                 />
               </label>
-              <p className="text-sm text-muted-foreground mt-4">
-                Maximum file size: 50MB
-              </p>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Files List */}
-          <Card className="shadow-soft">
-            <CardHeader className="pb-3">
-              <CardTitle>Recent Files</CardTitle>
+          {/* Files Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Files</CardTitle>
               <CardDescription>
-                Your recently uploaded and accessed files
+                Your uploaded files and shared resources
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg overflow-hidden border border-border">
-                <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">
-                        Name
-                      </th>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground hidden md:table-cell">
-                        Size
-                      </th>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground hidden sm:table-cell">
-                        Date Added
-                      </th>
-                      <th className="text-center p-3 text-sm font-medium text-muted-foreground hidden lg:table-cell">
-                        Shared
-                      </th>
-                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Date Added</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {files.map((file) => (
-                      <tr 
-                        key={file.id} 
-                        className="hover:bg-accent/30 transition-colors duration-200 animate-fade-in"
-                      >
-                        <td className="p-3 flex items-center space-x-2">
-                          <div className="p-2 bg-accent rounded-md">
-                            {getFileIcon(file.type)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{file.name}</p>
-                            {file.course && (
-                              <p className="text-xs text-muted-foreground">
-                                {file.course}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">
-                          {file.size}
-                        </td>
-                        <td className="p-3 text-sm text-muted-foreground hidden sm:table-cell">
-                          {file.dateAdded}
-                        </td>
-                        <td className="p-3 text-center hidden lg:table-cell">
-                          {file.shared ? (
-                            <Badge variant="secondary" className="bg-success/20 text-success">
-                              Shared
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-muted-foreground">
-                              Private
-                            </Badge>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <div className="flex justify-end items-center space-x-2">
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Share className="h-4 w-4 mr-2" />
-                                  Share
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Link className="h-4 w-4 mr-2" />
-                                  Copy Link
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive">
-                                  <Trash className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </td>
-                      </tr>
+                      <TableRow key={file.id} className="hover:bg-accent/50">
+                        <TableCell className="flex items-center space-x-3">
+                          {getFileIcon(file.type)}
+                          <span className="font-medium">{file.name}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{file.type}</Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{file.size}</TableCell>
+                        <TableCell className="text-muted-foreground">{file.dateAdded}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Share2 className="h-4 w-4 mr-2" />
+                                Share
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Preview
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => handleDeleteFile(file.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="folders" className="space-y-4 animate-fade-in">
+        <TabsContent value="folders" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {folders.map((folder, index) => (
-              <Card 
-                key={folder.id} 
-                className="hover-lift shadow-soft animate-scale-in"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
+            {folders.map((folder) => (
+              <Card key={folder.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-primary/10 rounded-md">
-                        <File className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{folder.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {folder.filesCount} files
-                        </p>
-                      </div>
+                  <div className="flex items-center space-x-3 mb-3">
+                    <Folder className="h-8 w-8 text-primary" />
+                    <div>
+                      <h3 className="font-medium">{folder.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {folder.filesCount} files
+                      </p>
                     </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">
+                      {folder.dateCreated}
+                    </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="h-4 w-4" />
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem>
-                          <Share className="h-4 w-4 mr-2" />
-                          Share Folder
+                          <Eye className="h-4 w-4 mr-2" />
+                          Open
                         </DropdownMenuItem>
                         <DropdownMenuItem>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download All
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Share
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive">
-                          <Trash className="h-4 w-4 mr-2" />
-                          Delete Folder
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <div className="mt-4 text-xs text-muted-foreground">
-                    Created {folder.dateCreated}
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full mt-4 hover-lift">
-                    Open Folder
-                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         </TabsContent>
 
-        <TabsContent value="shared" className="space-y-4 animate-fade-in">
-          <Card className="shadow-soft">
+        <TabsContent value="shared" className="space-y-4">
+          <Card>
             <CardHeader>
               <CardTitle>Shared Files</CardTitle>
-              <CardDescription>Files that have been shared with you or by you</CardDescription>
+              <CardDescription>
+                Files shared with you or that you've shared
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-lg overflow-hidden border border-border">
-                <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground">
-                        Name
-                      </th>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground hidden md:table-cell">
-                        Size
-                      </th>
-                      <th className="text-left p-3 text-sm font-medium text-muted-foreground hidden sm:table-cell">
-                        Shared By
-                      </th>
-                      <th className="text-center p-3 text-sm font-medium text-muted-foreground hidden lg:table-cell">
-                        Course
-                      </th>
-                      <th className="text-right p-3 text-sm font-medium text-muted-foreground">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {files.filter(file => file.shared).map((file) => (
-                      <tr 
-                        key={file.id} 
-                        className="hover:bg-accent/30 transition-colors duration-200"
-                      >
-                        <td className="p-3 flex items-center space-x-2">
-                          <div className="p-2 bg-accent rounded-md">
-                            {getFileIcon(file.type)}
-                          </div>
-                          <p className="text-sm font-medium">{file.name}</p>
-                        </td>
-                        <td className="p-3 text-sm text-muted-foreground hidden md:table-cell">
-                          {file.size}
-                        </td>
-                        <td className="p-3 text-sm text-muted-foreground hidden sm:table-cell">
-                          Dr. Smith
-                        </td>
-                        <td className="p-3 text-center hidden lg:table-cell">
-                          <Badge variant="outline">{file.course}</Badge>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex justify-end items-center space-x-2">
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Link className="h-4 w-4 mr-2" />
-                                  Copy Link
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                  <Share className="h-4 w-4 mr-2" />
-                                  Share With Others
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Shared By</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Date Shared</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {files.filter(file => file.isShared).map((file) => (
+                    <TableRow key={file.id}>
+                      <TableCell className="flex items-center space-x-3">
+                        {getFileIcon(file.type)}
+                        <span>{file.name}</span>
+                      </TableCell>
+                      <TableCell>{file.sharedBy}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{file.course}</Badge>
+                      </TableCell>
+                      <TableCell>{file.dateAdded}</TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button variant="ghost" size="sm">
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
 
         {userType === "lecturer" && (
-          <TabsContent value="published" className="space-y-4 animate-fade-in">
-            <Card className="shadow-soft">
+          <TabsContent value="published" className="space-y-4">
+            <Card>
               <CardHeader>
                 <CardTitle>Published Resources</CardTitle>
-                <CardDescription>Materials made available to all students</CardDescription>
+                <CardDescription>
+                  Resources you've made available to students
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="rounded-lg overflow-hidden border border-border">
-                  <table className="w-full">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="text-left p-3 text-sm font-medium text-muted-foreground">
-                          Title
-                        </th>
-                        <th className="text-left p-3 text-sm font-medium text-muted-foreground hidden md:table-cell">
-                          Type
-                        </th>
-                        <th className="text-left p-3 text-sm font-medium text-muted-foreground hidden sm:table-cell">
-                          Published Date
-                        </th>
-                        <th className="text-center p-3 text-sm font-medium text-muted-foreground">
-                          Course
-                        </th>
-                        <th className="text-right p-3 text-sm font-medium text-muted-foreground">
-                          Downloads
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {files.filter(file => file.shared).map((file, index) => (
-                        <tr 
-                          key={`pub-${file.id}`} 
-                          className="hover:bg-accent/30 transition-colors duration-200"
-                        >
-                          <td className="p-3 flex items-center space-x-2">
-                            <div className="p-2 bg-accent rounded-md">
-                              {getFileIcon(file.type)}
-                            </div>
-                            <p className="text-sm font-medium">{file.name}</p>
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground hidden md:table-cell capitalize">
-                            {file.type}
-                          </td>
-                          <td className="p-3 text-sm text-muted-foreground hidden sm:table-cell">
-                            {file.dateAdded}
-                          </td>
-                          <td className="p-3 text-center">
-                            <Badge variant="outline">{file.course}</Badge>
-                          </td>
-                          <td className="p-3 text-right text-sm">
-                            {12 + index * 7}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Downloads</TableHead>
+                      <TableHead>Published</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {files.filter(file => file.isPublished).map((file) => (
+                      <TableRow key={file.id}>
+                        <TableCell className="flex items-center space-x-3">
+                          {getFileIcon(file.type)}
+                          <span>{file.name}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{file.course}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{file.downloadCount}</Badge>
+                        </TableCell>
+                        <TableCell>{file.dateAdded}</TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Share2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           </TabsContent>
@@ -606,4 +521,4 @@ export function FileManagement({ userType }: FileManagementProps) {
       </Tabs>
     </div>
   );
-}
+};
