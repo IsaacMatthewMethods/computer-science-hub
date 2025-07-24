@@ -19,10 +19,10 @@ import {
 } from "lucide-react";
 
 interface LecturerDashboardProps {
-  lecturerName: string;
+  lecturerName?: string;
 }
 
-export function LecturerDashboard({ lecturerName }: LecturerDashboardProps) {
+export function LecturerDashboard({ lecturerName = "Lecturer" }: LecturerDashboardProps) {
   const [engagementRate, setEngagementRate] = useState(0);
 
   useEffect(() => {

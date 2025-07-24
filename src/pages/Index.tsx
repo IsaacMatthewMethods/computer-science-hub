@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Navigation } from "@/components/Navigation";
@@ -48,6 +49,7 @@ interface UserProfileData {
 const Index = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [userType, setUserType] = useState<"student" | "lecturer">("student");
   const [userName, setUserName] = useState("");
@@ -288,9 +290,9 @@ const Index = () => {
     switch (currentPage) {
       case "dashboard":
         return userType === "student" ? (
-          <StudentDashboard studentName={userName} />
+          <StudentDashboard />
         ) : (
-          <LecturerDashboard lecturerName={userName} />
+          <LecturerDashboard />
         );
       case "resources":
         return <FileManagement userType={userType} />;
@@ -327,9 +329,9 @@ const Index = () => {
         );
       default:
         return userType === "student" ? (
-          <StudentDashboard studentName={userName} />
+          <StudentDashboard />
         ) : (
-          <LecturerDashboard lecturerName={userName} />
+          <LecturerDashboard />
         );
     }
   };

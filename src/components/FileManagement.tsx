@@ -371,7 +371,7 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="text-destructive"
-                                onClick={() => handleDeleteFile(file.id)}
+                                onClick={() => handleDeleteFile(file.id, file.name, file.uploaded_by)}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
                                 Delete
