@@ -260,7 +260,7 @@ async function getConversationMessages(conversationId: string) {
     try {
       const { data: conversationId, error } = await supabase.rpc('create_conversation', { participant_id: contact.id });
       if (error) throw error;
-      setSelectedChat({ ...contact, id: conversationId }); // Update selected chat with new conversation ID
+      setSelectedChat({ ...contact, id: conversationId.toString() }); // Convert to string
       setShowNewChat(false);
       setSearchTerm(""); // Clear search term
     } catch (error) {
