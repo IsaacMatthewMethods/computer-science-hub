@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   BookOpen,
   Download,
@@ -18,17 +20,68 @@ import {
   Star,
 } from "lucide-react";
 
-interface StudentDashboardProps {
-  studentName: string;
-}
-
-export function StudentDashboard({ studentName }: StudentDashboardProps) {
+export function StudentDashboard() {
+  const { user } = useAuth();
   const [progressValue, setProgressValue] = useState(0);
+  const [userName, setUserName] = useState("");
+  const [resourcesDownloaded, setResourcesDownloaded] = useState(0);
+  const [chatMessages, setChatMessages] = useState(0);
+  const [collaborationHours, setCollaborationHours] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => setProgressValue(75), 500);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (user) {
+        // Fetch user name
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("first_name, last_name")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+        } else if (profile) {
+          setUserName(`${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Student");
+        }
+
+        // Fetch resources downloaded (assuming files table has a download_count and uploaded_by)
+        const { data: filesData, error: filesError } = await supabase
+          .from("files")
+          .select("download_count")
+          .eq("uploaded_by", user.id);
+
+        if (filesError) {
+          console.error("Error fetching files data:", filesError);
+        } else if (filesData) {
+          const totalDownloads = filesData.reduce((sum, file) => sum + file.download_count, 0);
+          setResourcesDownloaded(totalDownloads);
+        }
+
+        // Fetch chat messages (assuming messages table has sender_id)
+        const { count: messagesCount, error: messagesError } = await supabase
+          .from("messages")
+          .select("id", { count: 'exact' })
+          .eq("sender_id", user.id);
+
+        if (messagesError) {
+          console.error("Error fetching messages count:", messagesError);
+        } else if (messagesCount !== null) {
+          setChatMessages(messagesCount);
+        }
+
+        // Placeholder for Collaboration Hours - needs a table to track collaboration activities
+        // For now, using a static value or a simple calculation if a relevant table exists
+        setCollaborationHours(24); // Static placeholder
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   const recentActivity = [
     {
@@ -84,28 +137,28 @@ export function StudentDashboard({ studentName }: StudentDashboardProps) {
   const quickStats = [
     {
       label: "Resources Downloaded",
-      value: "42",
+      value: resourcesDownloaded.toString(),
       icon: Download,
       trend: "+12%",
       color: "text-blue-500",
     },
     {
       label: "Assignments Completed",
-      value: "18",
+      value: "18", // Static for now, needs a table to track assignments
       icon: FileText,
       trend: "+8%",
       color: "text-green-500",
     },
     {
       label: "Chat Messages",
-      value: "156",
+      value: chatMessages.toString(),
       icon: MessageSquare,
       trend: "+25%",
       color: "text-purple-500",
     },
     {
       label: "Collaboration Hours",
-      value: "24",
+      value: collaborationHours.toString(),
       icon: Users,
       trend: "+15%",
       color: "text-orange-500",
@@ -119,7 +172,7 @@ export function StudentDashboard({ studentName }: StudentDashboardProps) {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">
-              Welcome back, {studentName}! 👋
+              Welcome back, {userName}! 👋
             </h1>
             <p className="text-primary-foreground/80">
               You have 3 upcoming deadlines and 2 new resources available

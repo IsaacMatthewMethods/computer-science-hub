@@ -29,9 +29,10 @@ interface NavigationProps {
   userName: string;
   onNavigate: (page: string) => void;
   currentPage: string;
+  onSignOut: () => void; // Add this prop
 }
 
-export function Navigation({ userType, userName, onNavigate, currentPage }: NavigationProps) {
+export function Navigation({ userType, userName, onNavigate, currentPage, onSignOut }: NavigationProps) {
   const [notifications] = useState(3);
 
   const navItems = userType === "student" 
@@ -135,7 +136,7 @@ export function Navigation({ userType, userName, onNavigate, currentPage }: Navi
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={onSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>

@@ -37,7 +37,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    console.log("Calling Supabase signOut...");
     await supabase.auth.signOut();
+    console.log("Supabase signOut called.");
   };
 
   const value = {

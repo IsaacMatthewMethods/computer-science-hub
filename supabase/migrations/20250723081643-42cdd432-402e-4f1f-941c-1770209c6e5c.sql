@@ -137,6 +137,10 @@ CREATE POLICY "Users can leave study groups" ON public.study_group_members FOR D
 CREATE POLICY "Users can view their own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update their own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
 
+-- RLS policies for messages
+CREATE POLICY "Users can view their own messages" ON public.messages FOR SELECT USING (auth.uid() = sender_id);
+CREATE POLICY "Users can send messages" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
 -- Enable realtime for messages and notifications
 ALTER TABLE public.messages REPLICA IDENTITY FULL;
 ALTER TABLE public.notifications REPLICA IDENTITY FULL;

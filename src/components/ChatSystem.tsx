@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+
 import {
   Search,
   Send,
@@ -46,70 +47,10 @@ interface ChatContact {
 interface ChatSystemProps {
   userType: "student" | "lecturer";
   userName: string;
+  user: User | null;
 }
 
-export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [selectedChat, setSelectedChat] = useState<ChatContact | null>(null);
-  const [messageInput, setMessageInput] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [conversations, setConversations] = useState<ChatContact[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  import React, { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { getConversationId } from "@/lib/utils"; // Import the utility function
-import {
-  Search,
-  Send,
-  Phone,
-  Video,
-  MoreVertical,
-  Users,
-  MessageSquare,
-  ArrowLeft,
-} from "lucide-react";
-
-interface ChatMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  timestamp: string;
-  status: "sent" | "delivered" | "read";
-}
-
-interface ChatContact {
-  id: string;
-  name: string;
-  course?: string; // Optional, as not all profiles might have a course
-  role?: string; // Optional
-  status?: "online" | "offline" | "away"; // Optional, for future presence features
-  lastSeen?: string; // Optional
-  avatar?: string;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount?: number;
-  isGroup: boolean;
-}
-
-interface ChatSystemProps {
-  userType: "student" | "lecturer";
-  userName: string;
-}
-
-export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
-  const { user } = useAuth();
+export const ChatSystem = ({ userType, userName, user }: ChatSystemProps) => {
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedChat, setSelectedChat] = useState<ChatContact | null>(null);
@@ -148,7 +89,7 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
       setLoading(true);
       const { data: profiles, error } = await supabase
         .from("profiles")
-        .select("id, full_name, role, course, avatar_url")
+        .select("id, first_name, last_name, role, course, avatar_url")
         .neq("id", user?.id); // Exclude current user from contacts list
 
       if (error) {
@@ -163,7 +104,7 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
 
       const contacts: ChatContact[] = profiles.map((profile) => ({
         id: profile.id,
-        name: profile.full_name || "Unknown User",
+        name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Unknown User",
         course: profile.course || "N/A", // Assuming 'course' might be in profiles
         role: profile.role || "User", // Assuming 'role' might be in profiles
         status: "offline", // Placeholder for now
@@ -182,25 +123,15 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
     }
   };
 
-  const fetchMessages = React.useCallback(async (contactId: string) => {
+  const fetchMessages = React.useCallback(async (conversationId: string) => {
     try {
       if (!user?.id) return;
-      const conversationId = getConversationId(user.id, contactId);
-      const { data, error } = await supabase
-        .from("messages")
-        .select("*, sender:profiles(full_name)") // Fetch sender's full_name
-        .eq("conversation_id", conversationId)
-        .order("created_at", { ascending: true });
+      const data = await getConversationMessages(conversationId);
 
-      if (error) {
-        console.error("Error fetching messages:", error);
-        return;
-      }
-
-      const formattedMessages: ChatMessage[] = data.map((msg) => ({
+      const formattedMessages: ChatMessage[] = data.map((msg: any) => ({
         id: msg.id,
         senderId: msg.sender_id,
-        senderName: msg.sender?.full_name || "Unknown User", // Use fetched sender name
+        senderName: `${msg.sender?.first_name || ""} ${msg.sender?.last_name || ""}`.trim() || "Unknown User", // Use fetched sender name
         content: msg.content,
         timestamp: new Date(msg.created_at).toLocaleTimeString([], {
           hour: '2-digit',
@@ -227,8 +158,7 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
         },
         (payload) => {
           if (selectedChat && user) { // Ensure user is not null
-            const expectedConversationId = getConversationId(user.id, selectedChat.id);
-            if (payload.new.conversation_id === expectedConversationId) {
+            if (payload.new.conversation_id === selectedChat.id) {
               const senderProfile = allUsers.find(u => u.id === payload.new.sender_id);
               const newMessage: ChatMessage = {
                 id: payload.new.id,
@@ -257,7 +187,7 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
     try {
       const { data: profiles, error } = await supabase
         .from("profiles")
-        .select("id, full_name, role, course, avatar_url")
+        .select("id, first_name, last_name, role, course, avatar_url")
         .neq("id", user?.id); // Exclude current user
 
       if (error) {
@@ -267,7 +197,7 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
 
       const users: ChatContact[] = profiles.map((profile) => ({
         id: profile.id,
-        name: profile.full_name || "Unknown User",
+        name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Unknown User",
         course: profile.course || "N/A",
         role: profile.role || "User",
         status: "offline",
@@ -280,41 +210,80 @@ export const ChatSystem = ({ userType, userName }: ChatSystemProps) => {
     }
   }, [user]);
 
-  const handleSelectNewChat = (contact: ChatContact) => {
-    setSelectedChat(contact);
-    setShowNewChat(false);
-    setSearchTerm(""); // Clear search term
+  // Enhanced Message Sending Function
+  async function sendMessage(conversationId: string, content: string) {
+    try {
+        // Validate inputs
+        if (!conversationId || !content.trim()) {
+            throw new Error('Invalid conversation or message content');
+        }
+
+        // Send message via RPC with updated parameter names
+        const { data, error } = await supabase.rpc('send_message', {
+            p_conversation_uuid: conversationId,
+            p_content: content
+        });
+
+        if (error) {
+            console.error('Message sending error:', error);
+            throw error;
+        }
+
+        return data; // Message UUID
+    } catch (err) {
+        console.error('Message sending failed:', err);
+        // Implement user-friendly error handling
+        throw err;
+    }
+}
+
+// Message Retrieval Function
+async function getConversationMessages(conversationId: string) {
+    try {
+        const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        return data;
+    } catch (err) {
+        console.error('Message retrieval error:', err);
+        throw err;
+    }
+}
+
+  const handleSelectNewChat = async (contact: ChatContact) => {
+    if (!user) return;
+    try {
+      const { data: conversationId, error } = await supabase.rpc('create_conversation', { participant_id: contact.id });
+      if (error) throw error;
+      setSelectedChat({ ...contact, id: conversationId }); // Update selected chat with new conversation ID
+      setShowNewChat(false);
+      setSearchTerm(""); // Clear search term
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to start new chat.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedChat || !user) return;
 
     try {
-      const conversationId = getConversationId(user.id, selectedChat.id);
-      const { error } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          content: messageInput.trim(),
-        });
-
-      if (error) {
-        console.error("Error sending message:", error);
-        toast({
-          title: "Message failed",
-          description: "Failed to send message. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setMessageInput("");
-    } catch (error) {
+      const messageId = await sendMessage(selectedChat.id, messageInput.trim());
+      console.log("Message sent with ID:", messageId);
+      setMessageInput(""); // Clear input on successful send
+    } catch (error: any) { // Catch the error from sendMessage
       console.error("Error sending message:", error);
       toast({
         title: "Message failed",
-        description: "Failed to send message. Please try again.",
+        description: `Failed to send message: ${error.message}. Please try again.`,
         variant: "destructive",
       });
     }

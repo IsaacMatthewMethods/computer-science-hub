@@ -8,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useToast } from "@/hooks/use-toast";
 import {
   Upload,
@@ -33,18 +33,18 @@ import {
 } from "lucide-react";
 
 interface FileItem {
-  id: string;
+  id: string; // Using name as ID for simplicity with local files
   name: string;
   type: "document" | "image" | "video" | "audio" | "other";
   size: number; // Size in bytes
   dateAdded: string;
-  sharedBy: string; // User ID of the uploader
-  course: string; // Associated course, if any
-  downloadCount: number;
-  isShared: boolean;
-  isPublished: boolean;
-  url: string; // Supabase storage URL
-  user_id: string; // ID of the user who uploaded the file
+  sharedBy: string; // Placeholder
+  course: string; // Placeholder
+  downloadCount: number; // Placeholder
+  isShared: boolean; // Placeholder
+  isPublished: boolean; // Placeholder
+  url: string; // Local URL
+  uploaded_by: string; // Placeholder
 }
 
 interface FileManagementProps {
@@ -63,58 +63,35 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
     if (user) {
       fetchFiles();
     }
-  }, [user, fetchFiles]);
+  }, [user]);
 
   const fetchFiles = React.useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("files")
-        .select("id, name, type, size, created_at, user_id, is_shared, is_published, download_count, course");
-
-      if (error) {
-        console.error("Error fetching files:", error);
-        toast({
-          title: "Error loading files",
-          description: "Please try again later.",
-          variant: "destructive",
-        });
-        return;
+      const response = await fetch('http://localhost:3001/files');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
+      const data = await response.json();
 
-      const formattedFiles: FileItem[] = await Promise.all(data.map(async (file) => {
-        const { data: publicUrlData } = supabase
-          .storage
-          .from("files")
-          .getPublicUrl(`${file.user_id}/${file.name}`);
-
-        // Fetch uploader's name
-        const { data: uploaderProfile, error: profileError } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", file.user_id)
-          .single();
-
-        return {
-          id: file.id,
-          name: file.name,
-          type: file.type as FileItem["type"],
-          size: file.size,
-          dateAdded: new Date(file.created_at).toLocaleDateString(),
-          sharedBy: uploaderProfile?.full_name || "Unknown",
-          course: file.course || "N/A",
-          downloadCount: file.download_count,
-          isShared: file.is_shared,
-          isPublished: file.is_published,
-          url: publicUrlData?.publicUrl || "#",
-          user_id: file.user_id,
-        };
+      const formattedFiles: FileItem[] = data.map((file: any) => ({
+        id: file.name, // Using name as ID for simplicity with local files
+        name: file.name,
+        type: 'document', // Defaulting to document for now, can be improved
+        size: file.size,
+        dateAdded: new Date(file.dateAdded).toLocaleDateString(),
+        sharedBy: 'You', // Placeholder
+        course: 'N/A', // Placeholder
+        downloadCount: 0, // Placeholder
+        isShared: false, // Placeholder
+        isPublished: false, // Placeholder
+        url: `http://localhost:3001${file.path}`,
+        uploaded_by: user?.id || 'unknown', // Placeholder
       }));
 
       setFiles(formattedFiles);
-      // Calculate storage used (simple sum for now)
       const totalSize = formattedFiles.reduce((sum, file) => sum + file.size, 0);
-      setStorageUsed(Math.min(100, Math.round((totalSize / (500 * 1024 * 1024)) * 100))); // Assuming 500MB limit
+      setStorageUsed(Math.min(100, Math.round((totalSize / (500 * 1024 * 1024)) * 100)));
 
     } catch (error) {
       console.error("Error fetching files:", error);
@@ -187,33 +164,27 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
     }
 
     for (const file of filesToUpload) {
-      const filePath = `${user.id}/${file.name}`;
+      const formData = new FormData();
+      formData.append('file', file);
+
       try {
-        const { error: uploadError } = await supabase.storage
-          .from("files")
-          .upload(filePath, file, { upsert: true });
+        const response = await fetch('http://localhost:3001/upload', {
+          method: 'POST',
+          body: formData,
+        });
 
-        if (uploadError) throw uploadError;
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
-        const fileType = getFileTypeFromMime(file.type);
-
-        const { error: insertError } = await supabase
-          .from("files")
-          .insert({
-            name: file.name,
-            type: fileType,
-            size: file.size,
-            user_id: user.id,
-            // Add other fields as necessary, e.g., course, is_shared, is_published
-          });
-
-        if (insertError) throw insertError;
+        const result = await response.json();
+        console.log(result);
 
         toast({
           title: "File uploaded",
           description: `${file.name} has been uploaded successfully.`,
         });
-      } catch (error: Error) {
+      } catch (error: any) {
         console.error("Error uploading file:", error);
         toast({
           title: "Upload failed",
@@ -234,29 +205,22 @@ export const FileManagement = ({ userType }: FileManagementProps) => {
     return 'other';
   };
 
-  const handleDeleteFile = async (fileId: string, fileName: string, userId: string) => {
+  const handleDeleteFile = async (fileId: string, fileName: string, uploadedBy: string) => {
     try {
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from("files")
-        .remove([`${userId}/${fileName}`]);
+      const response = await fetch(`http://localhost:3001/delete-file/${fileName}`, {
+        method: 'DELETE',
+      });
 
-      if (storageError) throw storageError;
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from("files")
-        .delete()
-        .eq("id", fileId);
-
-      if (dbError) throw dbError;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       toast({
         title: "File deleted",
         description: "The file has been deleted successfully.",
       });
       fetchFiles();
-    } catch (error: Error) {
+    } catch (error: any) {
       console.error("Error deleting file:", error);
       toast({
         title: "Delete failed",

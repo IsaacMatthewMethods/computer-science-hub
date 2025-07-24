@@ -74,12 +74,14 @@ const Index = () => {
 
 
   const handleSignOut = async () => {
+    console.log("Attempting to sign out...");
     try {
       await signOut();
       toast({
         title: "Signed out successfully",
         description: "You have been logged out.",
       });
+      navigate("/auth");
     } catch (error) {
       toast({
         title: "Error signing out",
@@ -293,7 +295,7 @@ const Index = () => {
       case "resources":
         return <FileManagement userType={userType} />;
       case "chat":
-        return <ChatSystem userType={userType} userName={userName} />;
+        return <ChatSystem userType={userType} userName={userName} user={user} />;
       case "collaborate":
         return <CollaborationHub userType={userType} />;
       case "files":
@@ -340,6 +342,7 @@ const Index = () => {
           userName={userName}
           onNavigate={handleNavigate}
           currentPage={currentPage}
+          onSignOut={handleSignOut}
         />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {renderCurrentPage()}
