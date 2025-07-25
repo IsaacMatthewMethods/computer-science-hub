@@ -1,3 +1,4 @@
+import { ChatSystem } from "./ChatSystem";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,16 +63,20 @@ export function StudentDashboard() {
           setResourcesDownloaded(totalDownloads);
         }
 
-        // Fetch chat messages (assuming messages table has sender_id)
-        const { count: messagesCount, error: messagesError } = await supabase
-          .from("messages")
-          .select("id", { count: 'exact' })
-          .eq("sender_id", user.id);
+        try {
+          // Fetch chat messages (assuming messages table has sender_id)
+          const { count: messagesCount, error: messagesError } = await supabase
+            .from("messages")
+            .select("id", { count: 'exact' })
+            .eq("sender_id", user.id);
 
-        if (messagesError) {
-          console.error("Error fetching messages count:", messagesError);
-        } else if (messagesCount !== null) {
-          setChatMessages(messagesCount);
+          if (messagesError) {
+            console.error("Error fetching messages count:", JSON.stringify(messagesError, null, 2));
+          } else if (messagesCount !== null) {
+            setChatMessages(messagesCount);
+          }
+        } catch (error) {
+          console.error("An unexpected error occurred while fetching messages count:", error);
         }
 
         // Placeholder for Collaboration Hours - needs a table to track collaboration activities
@@ -309,32 +314,15 @@ export function StudentDashboard() {
       <Card className="hover-lift shadow-soft animate-slide-up" style={{ animationDelay: "0.3s" }}>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <Star className="h-5 w-5 mr-2 text-warning" />
-            Quick Actions
+            <MessageSquare className="h-5 w-5 mr-2 text-primary" />
+            Chat
           </CardTitle>
           <CardDescription>
-            Common tasks and shortcuts
+            Real-time chat with students and lecturers
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button className="h-20 flex-col bg-gradient-primary hover-glow">
-              <BookOpen className="h-6 w-6 mb-2" />
-              Browse Resources
-            </Button>
-            <Button variant="outline" className="h-20 flex-col hover-lift">
-              <MessageSquare className="h-6 w-6 mb-2" />
-              Start Chat
-            </Button>
-            <Button variant="outline" className="h-20 flex-col hover-lift">
-              <Users className="h-6 w-6 mb-2" />
-              Join Collaboration
-            </Button>
-            <Button variant="outline" className="h-20 flex-col hover-lift">
-              <FileText className="h-6 w-6 mb-2" />
-              Submit Assignment
-            </Button>
-          </div>
+          <ChatSystem userType="student" userName={userName} user={user} />
         </CardContent>
       </Card>
     </div>

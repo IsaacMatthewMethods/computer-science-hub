@@ -146,7 +146,7 @@ CREATE OR REPLACE FUNCTION public.send_friend_request(target_user_id UUID)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $
 DECLARE
     request_id UUID;
 BEGIN
@@ -175,13 +175,13 @@ BEGIN
 
     RETURN request_id;
 END;
-$$;
+$;
 
 CREATE OR REPLACE FUNCTION public.accept_friend_request(request_id UUID)
 RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $
 DECLARE
     friendship_id UUID;
     req_record RECORD;
@@ -210,14 +210,14 @@ BEGIN
 
     RETURN friendship_id;
 END;
-$$;
+$;
 
 -- Create function to update user presence
 CREATE OR REPLACE FUNCTION public.update_user_presence(new_status TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $
 BEGIN
     INSERT INTO public.user_presence (user_id, status, last_seen, updated_at)
     VALUES (auth.uid(), new_status, now(), now())
@@ -227,10 +227,68 @@ BEGIN
         last_seen = now(),
         updated_at = now();
 END;
-$$;
+$;
 
 -- Update conversations table to support groups
 ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT false;
 ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS name TEXT;
 ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMP WITH TIME ZONE DEFAULT now();
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- Fix for infinite recursion on conversation_participants
+-- Drop existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Users can view conversation participants for their conversations" ON public.conversation_participants;
+DROP POLICY IF EXISTS "Creator of a conversation can add participants" ON public.conversation_participants;
+DROP POLICY IF EXISTS "Users can view conversations they are a part of" ON public.conversations;
+DROP POLICY IF EXISTS "Users can create conversations" ON public.conversations;
+
+-- Enable RLS
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.conversation_participants ENABLE ROW LEVEL SECURITY;
+
+-- This policy allows a user to see participants of conversations they are also a part of.
+-- It avoids recursion by only checking the conversation_participants table.
+CREATE POLICY "Users can view conversation participants for their conversations"
+ON public.conversation_participants
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.conversation_participants cp
+    WHERE cp.conversation_id = conversation_participants.conversation_id
+      AND cp.user_id = auth.uid()
+  )
+);
+
+-- This policy allows the creator of a conversation to add participants.
+CREATE POLICY "Creator of a conversation can add participants"
+ON public.conversation_participants
+FOR INSERT
+WITH CHECK (
+  EXISTS (
+    SELECT 1
+    FROM public.conversations c
+    WHERE c.id = conversation_participants.conversation_id
+      AND c.created_by = auth.uid()
+  )
+);
+
+-- This policy allows users to see conversations they are a part of.
+CREATE POLICY "Users can view conversations they are a part of"
+ON public.conversations
+FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.conversation_participants cp
+    WHERE cp.conversation_id = conversations.id
+      AND cp.user_id = auth.uid()
+  )
+);
+
+-- This policy allows any authenticated user to create a conversation.
+CREATE POLICY "Users can create conversations"
+ON public.conversations
+FOR INSERT
+WITH CHECK (auth.role() = 'authenticated');

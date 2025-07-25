@@ -1,3 +1,4 @@
+import { createConversation, getUserConversations, sendMessage } from "@/lib/chat";
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,35 +89,26 @@ export const ChatSystem = ({ userType, userName, user }: ChatSystemProps) => {
   const fetchConversations = async () => {
     try {
       setLoading(true);
-      const { data: profiles, error } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, role, course, avatar_url")
-        .neq("id", user?.id); // Exclude current user from contacts list
-
-      if (error) {
-        console.error("Error fetching profiles:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load contacts.",
-          variant: "destructive",
+      const data = await getUserConversations();
+      if (data) {
+        const contacts: ChatContact[] = data.map((convo: any) => {
+          const participant = convo.conversation_participants.find((p: any) => p.user_id !== user?.id);
+          const profile = participant?.profiles;
+          return {
+            id: convo.id,
+            name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'Unknown User',
+            course: profile?.course || 'N/A',
+            role: profile?.role || 'User',
+            status: 'offline',
+            avatar: profile?.avatar_url || '/api/placeholder/40/40',
+            lastMessage: 'No messages yet',
+            lastMessageTime: convo.last_message_at ? new Date(convo.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+            unreadCount: 0,
+            isGroup: convo.is_group,
+          };
         });
-        return;
+        setConversations(contacts);
       }
-
-      const contacts: ChatContact[] = profiles.map((profile) => ({
-        id: profile.id,
-        name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Unknown User",
-        course: profile.course || "N/A", // Assuming 'course' might be in profiles
-        role: profile.role || "User", // Assuming 'role' might be in profiles
-        status: "offline", // Placeholder for now
-        lastSeen: "", // Placeholder for now
-        avatar: profile.avatar_url || "/api/placeholder/40/40",
-        lastMessage: "No messages yet", // Placeholder for now
-        lastMessageTime: "", // Placeholder for now
-        unreadCount: 0, // Placeholder for now
-        isGroup: false, // Assuming 1-on-1 chats for now
-      }));
-      setConversations(contacts);
     } catch (error) {
       console.error("Error fetching conversations:", error);
     } finally {
@@ -211,58 +203,18 @@ export const ChatSystem = ({ userType, userName, user }: ChatSystemProps) => {
     }
   }, [user]);
 
-  // Enhanced Message Sending Function
-  async function sendMessage(conversationId: string, content: string) {
-    try {
-        // Validate inputs
-        if (!conversationId || !content.trim()) {
-            throw new Error('Invalid conversation or message content');
-        }
-
-        // Send message via RPC with updated parameter names
-        const { data, error } = await supabase.rpc('send_message', {
-            p_conversation_uuid: conversationId,
-            p_content: content
-        });
-
-        if (error) {
-            console.error('Message sending error:', error);
-            throw error;
-        }
-
-        return data; // Message UUID
-    } catch (err) {
-        console.error('Message sending failed:', err);
-        // Implement user-friendly error handling
-        throw err;
-    }
-}
-
-// Message Retrieval Function
-async function getConversationMessages(conversationId: string) {
-    try {
-        const { data, error } = await supabase
-            .from('messages')
-            .select('*')
-            .eq('conversation_id', conversationId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        return data;
-    } catch (err) {
-        console.error('Message retrieval error:', err);
-        throw err;
-    }
-}
+  
 
   const handleSelectNewChat = async (contact: ChatContact) => {
     if (!user) return;
     try {
-      const { data: conversationId, error } = await supabase.rpc('create_conversation', { participant_id: contact.id });
-      if (error) throw error;
-      setSelectedChat({ ...contact, id: conversationId.toString() }); // Convert to string
-      setShowNewChat(false);
-      setSearchTerm(""); // Clear search term
+      const conversationId = await createConversation([contact.id]);
+      if (conversationId) {
+        setSelectedChat({ ...contact, id: conversationId.toString() });
+        setShowNewChat(false);
+        setSearchTerm("");
+        fetchConversations(); // Refresh conversations list
+      }
     } catch (error) {
       console.error("Error creating conversation:", error);
       toast({
@@ -277,8 +229,7 @@ async function getConversationMessages(conversationId: string) {
     if (!messageInput.trim() || !selectedChat || !user) return;
 
     try {
-      const messageId = await sendMessage(selectedChat.id, messageInput.trim());
-      console.log("Message sent with ID:", messageId);
+      await sendMessage(selectedChat.id, messageInput.trim());
       setMessageInput(""); // Clear input on successful send
     } catch (error: any) { // Catch the error from sendMessage
       console.error("Error sending message:", error);

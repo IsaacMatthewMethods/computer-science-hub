@@ -23,6 +23,7 @@ interface LecturerDashboardProps {
 }
 
 export function LecturerDashboard({ lecturerName = "Lecturer" }: LecturerDashboardProps) {
+  const { user } = useAuth();
   const [engagementRate, setEngagementRate] = useState(0);
 
   useEffect(() => {
@@ -317,32 +318,15 @@ export function LecturerDashboard({ lecturerName = "Lecturer" }: LecturerDashboa
       <Card className="hover-lift shadow-soft animate-slide-up" style={{ animationDelay: "0.4s" }}>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <AlertCircle className="h-5 w-5 mr-2 text-warning" />
-            Quick Actions
+            <MessageSquare className="h-5 w-5 mr-2 text-primary" />
+            Chat
           </CardTitle>
           <CardDescription>
-            Common tasks and shortcuts for lecturers
+            Real-time chat with students and lecturers
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button className="h-20 flex-col bg-gradient-primary hover-glow">
-              <Upload className="h-6 w-6 mb-2" />
-              Upload Resource
-            </Button>
-            <Button variant="outline" className="h-20 flex-col hover-lift">
-              <MessageSquare className="h-6 w-6 mb-2" />
-              Message Students
-            </Button>
-            <Button variant="outline" className="h-20 flex-col hover-lift">
-              <CheckCircle className="h-6 w-6 mb-2" />
-              Grade Assignments
-            </Button>
-            <Button variant="outline" className="h-20 flex-col hover-lift">
-              <Calendar className="h-6 w-6 mb-2" />
-              Schedule Class
-            </Button>
-          </div>
+          <ChatSystem userType="lecturer" userName={lecturerName} user={user} />
         </CardContent>
       </Card>
     </div>
