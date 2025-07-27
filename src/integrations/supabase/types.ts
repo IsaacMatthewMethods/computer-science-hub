@@ -190,16 +190,19 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          last_message_at: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          last_message_at?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          last_message_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -288,9 +291,11 @@ export type Database = {
           bio: string | null
           course: string | null
           created_at: string | null
+          display_name: string | null
           education_level: string | null
           email: string
           first_name: string | null
+          full_name: string | null
           id: string
           last_name: string | null
           role: Database["public"]["Enums"]["user_role"]
@@ -302,9 +307,11 @@ export type Database = {
           bio?: string | null
           course?: string | null
           created_at?: string | null
+          display_name?: string | null
           education_level?: string | null
           email: string
           first_name?: string | null
+          full_name?: string | null
           id: string
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -316,9 +323,11 @@ export type Database = {
           bio?: string | null
           course?: string | null
           created_at?: string | null
+          display_name?: string | null
           education_level?: string | null
           email?: string
           first_name?: string | null
+          full_name?: string | null
           id?: string
           last_name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
@@ -377,6 +386,10 @@ export type Database = {
           is_read: boolean | null
           sender_id: string
         }
+      }
+      user_is_conversation_participant: {
+        Args: { conversation_uuid: string; user_uuid: string }
+        Returns: boolean
       }
     }
     Enums: {

@@ -7,7 +7,7 @@ import { Navigation } from "@/components/Navigation";
 import { StudentDashboard } from "@/components/StudentDashboard";
 import { LecturerDashboard } from "@/components/LecturerDashboard";
 import { SimplifiedFileManagement } from "@/components/SimplifiedFileManagement";
-import { ChatSystem } from "@/components/ChatSystem";
+import { SimplifiedChatSystem } from "@/components/SimplifiedChatSystem";
 import { CollaborationHub } from "@/components/CollaborationHub";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -297,7 +297,7 @@ const Index = () => {
       case "resources":
         return <SimplifiedFileManagement userType={userType} />;
       case "chat":
-        return <ChatSystem userType={userType} userName={userName} user={user} />;
+        return <SimplifiedChatSystem userType={userType} userName={userName} user={user} />;
       case "collaborate":
         return <CollaborationHub userType={userType} />;
       case "files":
