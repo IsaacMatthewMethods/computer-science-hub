@@ -14,160 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
-      announcements: {
-        Row: {
-          author_id: string
-          content: string
-          created_at: string | null
-          id: string
-          is_pinned: boolean | null
-          title: string
-          updated_at: string | null
-        }
-        Insert: {
-          author_id: string
-          content: string
-          created_at?: string | null
-          id?: string
-          is_pinned?: boolean | null
-          title: string
-          updated_at?: string | null
-        }
-        Update: {
-          author_id?: string
-          content?: string
-          created_at?: string | null
-          id?: string
-          is_pinned?: boolean | null
-          title?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "announcements_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      assessment_results: {
-        Row: {
-          analytical_score: number | null
-          created_at: string | null
-          creative_score: number | null
-          id: string
-          practical_score: number | null
-          recommended_courses: string[] | null
-          social_score: number | null
-          user_id: string
-        }
-        Insert: {
-          analytical_score?: number | null
-          created_at?: string | null
-          creative_score?: number | null
-          id?: string
-          practical_score?: number | null
-          recommended_courses?: string[] | null
-          social_score?: number | null
-          user_id: string
-        }
-        Update: {
-          analytical_score?: number | null
-          created_at?: string | null
-          creative_score?: number | null
-          id?: string
-          practical_score?: number | null
-          recommended_courses?: string[] | null
-          social_score?: number | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assessment_results_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      careers: {
-        Row: {
-          category: string
-          created_at: string | null
-          description: string
-          entry_barrier: number
-          id: string
-          job_growth: number
-          locations: string[]
-          related_courses: Json
-          required_education: string[]
-          salary_currency: string
-          salary_max: number
-          salary_min: number
-          skills: string[]
-          title: string
-          top_employers: string[]
-          updated_at: string | null
-          video_links: string[] | null
-          work_life_balance: number
-        }
-        Insert: {
-          category: string
-          created_at?: string | null
-          description: string
-          entry_barrier: number
-          id: string
-          job_growth: number
-          locations: string[]
-          related_courses: Json
-          required_education: string[]
-          salary_currency?: string
-          salary_max: number
-          salary_min: number
-          skills: string[]
-          title: string
-          top_employers: string[]
-          updated_at?: string | null
-          video_links?: string[] | null
-          work_life_balance: number
-        }
-        Update: {
-          category?: string
-          created_at?: string | null
-          description?: string
-          entry_barrier?: number
-          id?: string
-          job_growth?: number
-          locations?: string[]
-          related_courses?: Json
-          required_education?: string[]
-          salary_currency?: string
-          salary_max?: number
-          salary_min?: number
-          skills?: string[]
-          title?: string
-          top_employers?: string[]
-          updated_at?: string | null
-          video_links?: string[] | null
-          work_life_balance?: number
-        }
-        Relationships: []
-      }
       conversation_participants: {
         Row: {
-          conversation_id: string
-          user_id: string
+          conversation_id: string | null
+          id: string
+          joined_at: string | null
+          user_id: string | null
         }
         Insert: {
-          conversation_id: string
-          user_id: string
+          conversation_id?: string | null
+          id?: string
+          joined_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          conversation_id?: string
-          user_id?: string
+          conversation_id?: string | null
+          id?: string
+          joined_at?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -189,84 +53,103 @@ export type Database = {
       conversations: {
         Row: {
           created_at: string | null
+          created_by: string | null
           id: string
-          last_message_at: string | null
+          is_group: boolean | null
+          title: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           id?: string
-          last_message_at?: string | null
+          is_group?: boolean | null
+          title?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           id?: string
-          last_message_at?: string | null
+          is_group?: boolean | null
+          title?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       files: {
         Row: {
           created_at: string | null
-          download_count: number | null
-          file_name: string
           file_path: string
           file_size: number | null
           file_type: string | null
-          id: number
-          updated_at: string | null
+          filename: string
+          id: string
+          is_public: boolean | null
           uploaded_by: string | null
         }
         Insert: {
           created_at?: string | null
-          download_count?: number | null
-          file_name: string
           file_path: string
           file_size?: number | null
           file_type?: string | null
-          id?: never
-          updated_at?: string | null
+          filename: string
+          id?: string
+          is_public?: boolean | null
           uploaded_by?: string | null
         }
         Update: {
           created_at?: string | null
-          download_count?: number | null
-          file_name?: string
           file_path?: string
           file_size?: number | null
           file_type?: string | null
-          id?: never
-          updated_at?: string | null
+          filename?: string
+          id?: string
+          is_public?: boolean | null
           uploaded_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
           content: string
-          conversation_id: string
+          conversation_id: string | null
           created_at: string | null
           id: string
-          is_read: boolean | null
-          sender_id: string
+          sender_id: string | null
+          updated_at: string | null
         }
         Insert: {
           content: string
-          conversation_id: string
+          conversation_id?: string | null
           created_at?: string | null
           id?: string
-          is_read?: boolean | null
-          sender_id: string
+          sender_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           content?: string
-          conversation_id?: string
+          conversation_id?: string | null
           created_at?: string | null
           id?: string
-          is_read?: boolean | null
-          sender_id?: string
+          sender_id?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -289,81 +172,34 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
-          course: string | null
           created_at: string | null
-          display_name: string | null
-          education_level: string | null
           email: string
-          first_name: string | null
           full_name: string | null
           id: string
-          last_name: string | null
-          role: Database["public"]["Enums"]["user_role"]
-          university: string | null
-          updated_at: string | null
+          last_login: string | null
+          role: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
-          course?: string | null
           created_at?: string | null
-          display_name?: string | null
-          education_level?: string | null
           email: string
-          first_name?: string | null
           full_name?: string | null
           id: string
-          last_name?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          university?: string | null
-          updated_at?: string | null
+          last_login?: string | null
+          role?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
-          course?: string | null
           created_at?: string | null
-          display_name?: string | null
-          education_level?: string | null
           email?: string
-          first_name?: string | null
           full_name?: string | null
           id?: string
-          last_name?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
-          university?: string | null
-          updated_at?: string | null
+          last_login?: string | null
+          role?: string | null
         }
         Relationships: []
-      }
-      saved_courses: {
-        Row: {
-          course_id: string
-          created_at: string | null
-          id: string
-          user_id: string
-        }
-        Insert: {
-          course_id: string
-          created_at?: string | null
-          id?: string
-          user_id: string
-        }
-        Update: {
-          course_id?: string
-          created_at?: string | null
-          id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "saved_courses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {
@@ -375,17 +211,8 @@ export type Database = {
         Returns: number
       }
       send_message: {
-        Args:
-          | { p_conversation_id: number; p_content: string }
-          | { p_conversation_uuid: string; p_content: string }
-        Returns: {
-          content: string
-          conversation_id: string
-          created_at: string | null
-          id: string
-          is_read: boolean | null
-          sender_id: string
-        }
+        Args: { p_conversation_uuid: string; p_content: string }
+        Returns: string
       }
       user_is_conversation_participant: {
         Args: { conversation_uuid: string; user_uuid: string }
@@ -393,7 +220,14 @@ export type Database = {
       }
     }
     Enums: {
+      notification_type:
+        | "message"
+        | "friend_request"
+        | "project_invite"
+        | "system"
+        | "reminder"
       user_role: "student" | "counselor" | "admin"
+      user_status: "online" | "offline" | "away" | "do_not_disturb"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -521,7 +355,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      notification_type: [
+        "message",
+        "friend_request",
+        "project_invite",
+        "system",
+        "reminder",
+      ],
       user_role: ["student", "counselor", "admin"],
+      user_status: ["online", "offline", "away", "do_not_disturb"],
     },
   },
 } as const
