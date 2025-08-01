@@ -13,7 +13,7 @@ export async function createConversation(participantIds: string[]) {
     // Create conversation
     const { data: conversationData, error: conversationError } = await supabase
       .from('conversations')
-      .insert({ created_by: currentUserId })
+      .insert({})
       .select('id')
       .single();
 

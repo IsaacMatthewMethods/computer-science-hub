@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { ImprovedChatSystem } from "@/components/ImprovedChatSystem";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -326,7 +328,7 @@ export function LecturerDashboard({ lecturerName = "Lecturer" }: LecturerDashboa
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChatSystem userType="lecturer" userName={lecturerName} user={user} />
+          <ImprovedChatSystem userType="lecturer" />
         </CardContent>
       </Card>
     </div>

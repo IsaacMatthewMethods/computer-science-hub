@@ -1,4 +1,4 @@
-import { ChatSystem } from "./ChatSystem";
+import { ImprovedChatSystem } from "./ImprovedChatSystem";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -322,7 +322,7 @@ export function StudentDashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChatSystem userType="student" userName={userName} user={user} />
+          <ImprovedChatSystem userType="student" />
         </CardContent>
       </Card>
     </div>

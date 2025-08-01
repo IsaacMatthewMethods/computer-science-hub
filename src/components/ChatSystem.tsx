@@ -1,4 +1,5 @@
 import { createConversation, getUserConversations, sendMessage } from "@/lib/chat";
+import { getConversationMessages } from "@/lib/getConversationMessages";
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
