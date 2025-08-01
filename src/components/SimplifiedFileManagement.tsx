@@ -35,15 +35,21 @@ import {
 } from "lucide-react";
 
 interface DatabaseFile {
-  id: number;
-  file_name: string;
+  id: string;
+  filename: string;
   file_type: string;
   file_size: number;
   file_path: string;
   uploaded_by: string;
   download_count: number;
   created_at: string;
-  updated_at: string;
+  category?: string;
+  course_id?: string;
+  description?: string;
+  is_featured?: boolean;
+  is_public?: boolean;
+  tags?: string[];
+  title?: string;
 }
 
 interface SimplifiedFileManagementProps {
@@ -107,7 +113,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
     const { data, error } = await supabase
       .from("files")
       .insert({
-        file_name: file.name,
+        filename: file.name,
         file_type: getFileTypeFromMime(file.type),
         file_size: file.size,
         file_path: filePath,
@@ -158,7 +164,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
     }
   };
 
-  const handleDeleteFile = async (fileId: number) => {
+  const handleDeleteFile = async (fileId: string) => {
     try {
       const { error } = await supabase
         .from("files")
@@ -193,7 +199,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
 
       toast({
         title: "Download started",
-        description: `Downloading ${file.file_name}`,
+        description: `Downloading ${file.filename}`,
       });
 
       fetchFiles(); // Refresh to show updated download count
@@ -234,7 +240,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
   };
 
   const filteredFiles = files.filter(file =>
-    file.file_name.toLowerCase().includes(searchTerm.toLowerCase())
+    file.filename.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -366,7 +372,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
                       <TableRow key={file.id} className="hover:bg-accent/50">
                         <TableCell className="flex items-center space-x-3">
                           {getFileIcon(file.file_type)}
-                          <span className="font-medium">{file.file_name}</span>
+                          <span className="font-medium">{file.filename}</span>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">{file.file_type}</Badge>
@@ -444,7 +450,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
                     <TableRow key={file.id}>
                       <TableCell className="flex items-center space-x-3">
                         {getFileIcon(file.file_type)}
-                        <span className="font-medium">{file.file_name}</span>
+                        <span className="font-medium">{file.filename}</span>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{file.file_type}</Badge>
@@ -495,7 +501,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
                     <TableRow key={file.id}>
                       <TableCell className="flex items-center space-x-3">
                         {getFileIcon(file.file_type)}
-                        <span className="font-medium">{file.file_name}</span>
+                        <span className="font-medium">{file.filename}</span>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{file.file_type}</Badge>
@@ -539,7 +545,7 @@ export const SimplifiedFileManagement = ({ userType }: SimplifiedFileManagementP
                     <TableRow key={file.id}>
                       <TableCell className="flex items-center space-x-3">
                         {getFileIcon(file.file_type)}
-                        <span className="font-medium">{file.file_name}</span>
+                        <span className="font-medium">{file.filename}</span>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{file.file_type}</Badge>
