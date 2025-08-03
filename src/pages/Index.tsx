@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { Navigation } from "@/components/Navigation";
 import { StudentDashboard } from "@/components/StudentDashboard";
 import { LecturerDashboard } from "@/components/LecturerDashboard";
-import { SimplifiedFileManagement } from "@/components/SimplifiedFileManagement";
+import { EnhancedFileManagement } from "@/components/EnhancedFileManagement";
 import { ImprovedChatSystem } from "@/components/ImprovedChatSystem";
 import { CollaborationHub } from "@/components/CollaborationHub";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { 
   User, 
@@ -33,42 +34,49 @@ import {
   LogOut,
 } from "lucide-react";
 
-interface UserProfileData {
-  id: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  role?: string;
-  university?: string;
-  created_at: string;
-  bio?: string;
-  course?: string;
-  education_level?: string;
-}
-
 const Index = () => {
   const { user, signOut } = useAuth();
+  const { profile, loading: profileLoading, updateProfile, saving } = useProfile();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [userType, setUserType] = useState<"student" | "lecturer">("student");
-  const [userName, setUserName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState<UserProfileData | null>(null);
-
-  // User profile data from database
-  const [userProfile, setUserProfile] = useState({
-    name: "",
+  const [editedProfile, setEditedProfile] = useState({
+    first_name: "",
+    last_name: "",
     email: "",
     phone: "",
-    location: "",
-    joinDate: "",
+    address: "",
     bio: "",
     course: "",
-    year: "",
-    skills: [] as string[],
-    achievements: [] as string[],
+    student_id: "",
+    department: "",
   });
+
+  // Update local state when profile changes
+  useEffect(() => {
+    if (profile) {
+      setEditedProfile({
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        address: profile.address || "",
+        bio: profile.bio || "",
+        course: profile.course || "",
+        student_id: profile.student_id || "",
+        department: profile.department || "",
+      });
+      
+      // Determine user type based on role
+      if (profile.role === "lecturer" || profile.role === "admin") {
+        setUserType("lecturer");
+      } else {
+        setUserType("student");
+      }
+    }
+  }, [profile]);
 
   
 
@@ -101,16 +109,60 @@ const Index = () => {
     setUserType(userType === "student" ? "lecturer" : "student");
   };
 
+  const handleSaveProfile = async () => {
+    if (isEditing) {
+      const success = await updateProfile(editedProfile);
+      if (success) {
+        setIsEditing(false);
+      }
+    } else {
+      setIsEditing(true);
+    }
+  };
+
+  const getUserDisplayName = () => {
+    if (!profile) return "User";
+    if (profile.full_name) return profile.full_name;
+    if (profile.first_name || profile.last_name) {
+      return `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    }
+    return "User";
+  };
+
+  const getUserInitials = () => {
+    const name = getUserDisplayName();
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  if (profileLoading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p>Loading profile...</p>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
   const renderProfile = () => (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-foreground">Profile</h1>
         <Button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={handleSaveProfile}
+          disabled={saving}
           variant={isEditing ? "default" : "outline"}
           className={isEditing ? "bg-gradient-primary hover-glow" : "hover-lift"}
         >
-          {isEditing ? (
+          {saving ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Saving...
+            </>
+          ) : isEditing ? (
             <>
               <Save className="h-4 w-4 mr-2" />
               Save Changes
@@ -130,28 +182,20 @@ const Index = () => {
           <CardContent className="p-6">
             <div className="flex flex-col items-center text-center">
               <Avatar className="h-24 w-24 mb-4">
-                <AvatarImage src="/placeholder-avatar.jpg" />
+                <AvatarImage src={profile?.avatar_url || undefined} />
                 <AvatarFallback className="bg-gradient-primary text-primary-foreground text-lg">
-                  {userProfile.name.split(' ').map(n => n[0]).join('')}
+                  {getUserInitials()}
                 </AvatarFallback>
               </Avatar>
-              {isEditing ? (
-                <Input
-                  value={userProfile.name}
-                  onChange={(e) => setUserProfile({...userProfile, name: e.target.value})}
-                  className="text-center text-xl font-bold mb-2"
-                />
-              ) : (
-                <h2 className="text-xl font-bold mb-2">{userProfile.name}</h2>
-              )}
+              <h2 className="text-xl font-bold mb-2">{getUserDisplayName()}</h2>
               <Badge className="mb-4 bg-gradient-primary text-primary-foreground">
                 {userType === "student" ? "Student" : "Lecturer"}
               </Badge>
               <p className="text-sm text-muted-foreground mb-4">
-                {userProfile.course}
+                {profile?.course || "No course specified"}
               </p>
               <p className="text-sm text-muted-foreground">
-                {userProfile.year}
+                {profile?.department || "No department specified"}
               </p>
             </div>
           </CardContent>
@@ -171,6 +215,30 @@ const Index = () => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
+                <Label htmlFor="first_name">First Name</Label>
+                {isEditing ? (
+                  <Input
+                    id="first_name"
+                    value={editedProfile.first_name}
+                    onChange={(e) => setEditedProfile({...editedProfile, first_name: e.target.value})}
+                  />
+                ) : (
+                  <p className="text-sm">{profile?.first_name || "Not specified"}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Last Name</Label>
+                {isEditing ? (
+                  <Input
+                    id="last_name"
+                    value={editedProfile.last_name}
+                    onChange={(e) => setEditedProfile({...editedProfile, last_name: e.target.value})}
+                  />
+                ) : (
+                  <p className="text-sm">{profile?.last_name || "Not specified"}</p>
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center">
                   <Mail className="h-4 w-4 mr-2" />
                   Email
@@ -178,11 +246,12 @@ const Index = () => {
                 {isEditing ? (
                   <Input
                     id="email"
-                    value={userProfile.email}
-                    onChange={(e) => setUserProfile({...userProfile, email: e.target.value})}
+                    type="email"
+                    value={editedProfile.email}
+                    onChange={(e) => setEditedProfile({...editedProfile, email: e.target.value})}
                   />
                 ) : (
-                  <p className="text-sm">{userProfile.email}</p>
+                  <p className="text-sm">{profile?.email}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -193,26 +262,26 @@ const Index = () => {
                 {isEditing ? (
                   <Input
                     id="phone"
-                    value={userProfile.phone}
-                    onChange={(e) => setUserProfile({...userProfile, phone: e.target.value})}
+                    value={editedProfile.phone}
+                    onChange={(e) => setEditedProfile({...editedProfile, phone: e.target.value})}
                   />
                 ) : (
-                  <p className="text-sm">{userProfile.phone}</p>
+                  <p className="text-sm">{profile?.phone || "Not specified"}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="location" className="flex items-center">
+                <Label htmlFor="address" className="flex items-center">
                   <MapPin className="h-4 w-4 mr-2" />
-                  Location
+                  Address
                 </Label>
                 {isEditing ? (
                   <Input
-                    id="location"
-                    value={userProfile.location}
-                    onChange={(e) => setUserProfile({...userProfile, location: e.target.value})}
+                    id="address"
+                    value={editedProfile.address}
+                    onChange={(e) => setEditedProfile({...editedProfile, address: e.target.value})}
                   />
                 ) : (
-                  <p className="text-sm">{userProfile.location}</p>
+                  <p className="text-sm">{profile?.address || "Not specified"}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -220,65 +289,63 @@ const Index = () => {
                   <Calendar className="h-4 w-4 mr-2" />
                   Member Since
                 </Label>
-                <p className="text-sm">{userProfile.joinDate}</p>
+                <p className="text-sm">
+                  {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "Unknown"}
+                </p>
               </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="course">Course</Label>
+              {isEditing ? (
+                <Input
+                  id="course"
+                  value={editedProfile.course}
+                  onChange={(e) => setEditedProfile({...editedProfile, course: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm">{profile?.course || "Not specified"}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="student_id">Student ID</Label>
+              {isEditing ? (
+                <Input
+                  id="student_id"
+                  value={editedProfile.student_id}
+                  onChange={(e) => setEditedProfile({...editedProfile, student_id: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm">{profile?.student_id || "Not specified"}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              {isEditing ? (
+                <Input
+                  id="department"
+                  value={editedProfile.department}
+                  onChange={(e) => setEditedProfile({...editedProfile, department: e.target.value})}
+                />
+              ) : (
+                <p className="text-sm">{profile?.department || "Not specified"}</p>
+              )}
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="bio">Bio</Label>
               {isEditing ? (
-                <textarea
+                <Textarea
                   id="bio"
-                  value={userProfile.bio}
-                  onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
-                  className="w-full p-2 border border-input rounded-md bg-background text-sm min-h-[80px] focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editedProfile.bio}
+                  onChange={(e) => setEditedProfile({...editedProfile, bio: e.target.value})}
+                  className="min-h-[80px]"
                 />
               ) : (
-                <p className="text-sm text-muted-foreground">{userProfile.bio}</p>
+                <p className="text-sm text-muted-foreground">{profile?.bio || "No bio provided"}</p>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Skills */}
-        <Card className="shadow-soft hover-lift">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Target className="h-5 w-5 mr-2 text-primary" />
-              Skills
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {userProfile.skills.map((skill, index) => (
-                <Badge key={index} variant="secondary" className="animate-scale-in">
-                  {skill}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Achievements */}
-        <Card className="lg:col-span-2 shadow-soft hover-lift">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Award className="h-5 w-5 mr-2 text-primary" />
-              Achievements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {userProfile.achievements.map((achievement, index) => (
-                <div 
-                  key={index} 
-                  className="flex items-center space-x-3 p-3 bg-accent/30 rounded-lg animate-slide-up"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="w-2 h-2 bg-success rounded-full"></div>
-                  <span className="text-sm">{achievement}</span>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>
@@ -295,13 +362,13 @@ const Index = () => {
           <LecturerDashboard />
         );
       case "resources":
-        return <SimplifiedFileManagement userType={userType} />;
+        return <EnhancedFileManagement userType={userType} />;
       case "chat":
         return <ImprovedChatSystem userType={userType} />;
       case "collaborate":
         return <CollaborationHub userType={userType} />;
       case "files":
-        return <SimplifiedFileManagement userType={userType} />;
+        return <EnhancedFileManagement userType={userType} />;
       case "students":
         return <CollaborationHub userType={userType} />;
       case "profile":
@@ -341,7 +408,7 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <Navigation
           userType={userType}
-          userName={userName}
+          userName={getUserDisplayName()}
           onNavigate={handleNavigate}
           currentPage={currentPage}
           onSignOut={handleSignOut}
