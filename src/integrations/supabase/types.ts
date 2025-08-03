@@ -663,7 +663,7 @@ export type Database = {
     Functions: {
       create_conversation: {
         Args: { participant_id: string }
-        Returns: number
+        Returns: string
       }
       get_user_role: {
         Args: { user_uuid: string }

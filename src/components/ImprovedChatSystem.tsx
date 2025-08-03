@@ -243,7 +243,7 @@ export const ImprovedChatSystem = ({ userType }: ImprovedChatSystemProps) => {
 
       if (error) throw error;
 
-      const conversationId = data.toString();
+      const conversationId = data;
       const chatContact = {
         ...contact,
         conversation_id: conversationId,
@@ -388,7 +388,7 @@ export const ImprovedChatSystem = ({ userType }: ImprovedChatSystemProps) => {
                   }`}
                 >
                   <Avatar className="h-10 w-10 mr-3">
-                    <AvatarImage src={contact.avatar_url || ""} />
+                    <AvatarImage src={contact.avatar_url || undefined} />
                     <AvatarFallback>
                       {contact.full_name.charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -419,7 +419,7 @@ export const ImprovedChatSystem = ({ userType }: ImprovedChatSystemProps) => {
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedChat.avatar_url || ""} />
+                  <AvatarImage src={selectedChat.avatar_url || undefined} />
                   <AvatarFallback>
                     {selectedChat.full_name.charAt(0).toUpperCase()}
                   </AvatarFallback>
