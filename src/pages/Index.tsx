@@ -362,13 +362,13 @@ const Index = () => {
           <LecturerDashboard />
         );
       case "resources":
-        return <EnhancedFileManagement userType={userType} />;
+        return <EnhancedFileManagement userType={userType} pageContext="resources" />;
       case "chat":
         return <ImprovedChatSystem userType={userType} />;
       case "collaborate":
         return <CollaborationHub userType={userType} />;
       case "files":
-        return <EnhancedFileManagement userType={userType} />;
+        return <EnhancedFileManagement userType={userType} pageContext="my-files" />;
       case "students":
         return <CollaborationHub userType={userType} />;
       case "profile":

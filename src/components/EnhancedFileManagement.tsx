@@ -45,16 +45,21 @@ interface DatabaseFile {
 
 interface EnhancedFileManagementProps {
   userType: "student" | "lecturer";
+  pageContext?: "resources" | "my-files";
 }
 
-export const EnhancedFileManagement = ({ userType }: EnhancedFileManagementProps) => {
+export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileManagementProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   
   const [files, setFiles] = useState<DatabaseFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedTab, setSelectedTab] = useState("all");
+  const [selectedTab, setSelectedTab] = useState(
+    pageContext === "resources" ? "shared" : 
+    pageContext === "my-files" ? "my-files" : 
+    "all"
+  );
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -168,7 +173,11 @@ export const EnhancedFileManagement = ({ userType }: EnhancedFileManagementProps
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-foreground">Enhanced File Management</h1>
+        <h1 className="text-2xl font-bold text-foreground">
+          {pageContext === "resources" ? "Resources" : 
+           pageContext === "my-files" ? "My Files" : 
+           "Enhanced File Management"}
+        </h1>
         <Button onClick={() => setShowUploadDialog(true)} className="flex items-center gap-2">
           <Upload className="h-4 w-4" />
           Upload File
@@ -186,10 +195,10 @@ export const EnhancedFileManagement = ({ userType }: EnhancedFileManagementProps
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">All Files</TabsTrigger>
-          <TabsTrigger value="my-files">My Files</TabsTrigger>
-          <TabsTrigger value="shared">Resources</TabsTrigger>
+        <TabsList className={`grid w-full ${pageContext ? 'grid-cols-3' : 'grid-cols-4'}`}>
+          {!pageContext && <TabsTrigger value="all">All Files</TabsTrigger>}
+          {pageContext !== "resources" && <TabsTrigger value="my-files">My Files</TabsTrigger>}
+          {pageContext !== "my-files" && <TabsTrigger value="shared">Resources</TabsTrigger>}
           <TabsTrigger value="recent">Recent</TabsTrigger>
         </TabsList>
 
