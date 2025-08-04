@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +55,15 @@ export const EnhancedFileManagement = ({ userType }: EnhancedFileManagementProps
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTab, setSelectedTab] = useState("all");
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadForm, setUploadForm] = useState({
+    file: null as File | null,
+    title: "",
+    description: "",
+    is_public: false,
+  });
 
   useEffect(() => {
     if (user) {
@@ -100,9 +110,70 @@ export const EnhancedFileManagement = ({ userType }: EnhancedFileManagementProps
     }
   };
 
+  const handleFileUpload = async () => {
+    if (!uploadForm.file || !user) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Insert file record into database
+      const { data, error } = await supabase
+        .from("files")
+        .insert({
+          filename: uploadForm.file.name,
+          file_type: uploadForm.file.type,
+          file_size: uploadForm.file.size,
+          file_path: `/uploads/${uploadForm.file.name}`,
+          uploaded_by: user.id,
+          title: uploadForm.title || uploadForm.file.name,
+          description: uploadForm.description,
+          is_public: uploadForm.is_public,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setUploadProgress(100);
+      
+      toast({
+        title: "File uploaded successfully",
+        description: `${uploadForm.file.name} has been uploaded.`,
+      });
+
+      // Reset form and close dialog
+      setUploadForm({
+        file: null,
+        title: "",
+        description: "",
+        is_public: false,
+      });
+      setShowUploadDialog(false);
+      
+      // Refresh files list
+      fetchFiles();
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold text-foreground">Enhanced File Management</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-foreground">Enhanced File Management</h1>
+        <Button onClick={() => setShowUploadDialog(true)} className="flex items-center gap-2">
+          <Upload className="h-4 w-4" />
+          Upload File
+        </Button>
+      </div>
       
       <div className="relative max-w-sm">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -154,6 +225,76 @@ export const EnhancedFileManagement = ({ userType }: EnhancedFileManagementProps
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Upload File</DialogTitle>
+            <DialogDescription>
+              Choose a file to upload and set its visibility preferences.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="file">File</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  setUploadForm(prev => ({ ...prev, file }));
+                }}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="title">Title (optional)</Label>
+              <Input
+                id="title"
+                value={uploadForm.title}
+                onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Enter a custom title for the file"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                value={uploadForm.description}
+                onChange={(e) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter a description for the file"
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="public"
+                checked={uploadForm.is_public}
+                onCheckedChange={(checked) => setUploadForm(prev => ({ ...prev, is_public: checked }))}
+              />
+              <Label htmlFor="public" className="flex items-center gap-2">
+                {uploadForm.is_public ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                {uploadForm.is_public ? "Public - visible to other students" : "Private - only visible to you"}
+              </Label>
+            </div>
+            {uploading && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Uploading...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <Progress value={uploadProgress} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUploadDialog(false)} disabled={uploading}>
+              Cancel
+            </Button>
+            <Button onClick={handleFileUpload} disabled={!uploadForm.file || uploading}>
+              {uploading ? "Uploading..." : "Upload"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
