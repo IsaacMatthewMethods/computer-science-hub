@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { FileViewer } from "@/components/FileViewer";
 import {
   Upload,
   Search,
@@ -69,6 +70,8 @@ export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileMa
     description: "",
     is_public: false,
   });
+  const [selectedFile, setSelectedFile] = useState<DatabaseFile | null>(null);
+  const [showFileViewer, setShowFileViewer] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -122,6 +125,22 @@ export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileMa
     setUploadProgress(0);
 
     try {
+      // Create unique file path
+      const fileExt = uploadForm.file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('files')
+        .upload(fileName, uploadForm.file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      setUploadProgress(50);
+
       // Insert file record into database
       const { data, error } = await supabase
         .from("files")
@@ -129,7 +148,7 @@ export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileMa
           filename: uploadForm.file.name,
           file_type: uploadForm.file.type,
           file_size: uploadForm.file.size,
-          file_path: `/uploads/${uploadForm.file.name}`,
+          file_path: uploadData.path,
           uploaded_by: user.id,
           title: uploadForm.title || uploadForm.file.name,
           description: uploadForm.description,
@@ -159,6 +178,7 @@ export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileMa
       // Refresh files list
       fetchFiles();
     } catch (error) {
+      console.error('Upload error:', error);
       toast({
         title: "Upload failed",
         description: "Please try again later.",
@@ -167,6 +187,66 @@ export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileMa
     } finally {
       setUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const getFileIcon = (filename: string, fileType?: string) => {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    
+    if (fileType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '')) {
+      return <Image className="h-5 w-5 text-blue-500" />;
+    }
+    if (fileType === 'application/pdf' || extension === 'pdf') {
+      return <FileText className="h-5 w-5 text-red-500" />;
+    }
+    if (['doc', 'docx'].includes(extension || '')) {
+      return <FileText className="h-5 w-5 text-blue-600" />;
+    }
+    if (fileType?.startsWith('video/') || ['mp4', 'avi', 'mov', 'wmv'].includes(extension || '')) {
+      return <Video className="h-5 w-5 text-purple-500" />;
+    }
+    if (fileType?.startsWith('audio/') || ['mp3', 'wav', 'flac'].includes(extension || '')) {
+      return <Music className="h-5 w-5 text-green-500" />;
+    }
+    return <File className="h-5 w-5 text-gray-500" />;
+  };
+
+  const handleViewFile = (file: DatabaseFile) => {
+    setSelectedFile(file);
+    setShowFileViewer(true);
+  };
+
+  const handleDownload = async (file: DatabaseFile) => {
+    try {
+      const { data } = supabase.storage.from('files').getPublicUrl(file.file_path);
+      
+      const link = document.createElement('a');
+      link.href = data.publicUrl;
+      link.download = file.filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Update download count
+      await supabase
+        .from('files')
+        .update({ download_count: (file.download_count || 0) + 1 })
+        .eq('id', file.id);
+
+      toast({
+        title: "Download started",
+        description: `Downloading ${file.filename}`,
+      });
+
+      // Refresh files to update download count
+      fetchFiles();
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: "Could not download file",
+        variant: "destructive",
+      });
     }
   };
 
@@ -212,21 +292,76 @@ export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileMa
               ) : (
                 <div className="space-y-4">
                   {getFilteredFiles().map((file) => (
-                    <div key={file.id} className="flex items-center justify-between p-4 border rounded">
-                      <div>
-                        <p className="font-medium">{file.title || file.filename}</p>
-                        <p className="text-sm text-muted-foreground">{file.filename}</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={file.is_public ? "default" : "secondary"}>
-                          {file.is_public ? "Public" : "Private"}
-                        </Badge>
-                        <span className="text-sm">{file.download_count} downloads</span>
-                      </div>
-                    </div>
+                    <Card key={file.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            {getFileIcon(file.filename, file.file_type)}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{file.title || file.filename}</p>
+                              <p className="text-sm text-muted-foreground truncate">{file.filename}</p>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <Badge variant={file.is_public ? "default" : "secondary"} className="text-xs">
+                                  {file.is_public ? (
+                                    <>
+                                      <Globe className="h-3 w-3 mr-1" />
+                                      Public
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Lock className="h-3 w-3 mr-1" />
+                                      Private
+                                    </>
+                                  )}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {file.download_count || 0} downloads
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {file.file_size ? `${(file.file_size / 1024 / 1024).toFixed(2)} MB` : 'Unknown size'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewFile(file)}
+                              className="flex items-center gap-1"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownload(file)}
+                              className="flex items-center gap-1"
+                            >
+                              <Download className="h-4 w-4" />
+                              Download
+                            </Button>
+                          </div>
+                        </div>
+                        {file.description && (
+                          <p className="text-sm text-muted-foreground mt-2 truncate">
+                            {file.description}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
                   ))}
                   {getFilteredFiles().length === 0 && (
-                    <p className="text-center py-8 text-muted-foreground">No files found</p>
+                    <Card>
+                      <CardContent className="p-8 text-center">
+                        <File className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground">No files found</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {selectedTab === "my-files" ? "Upload some files to get started" : "No files match your search criteria"}
+                        </p>
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
               )}
@@ -304,6 +439,15 @@ export const EnhancedFileManagement = ({ userType, pageContext }: EnhancedFileMa
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FileViewer
+        file={selectedFile}
+        isOpen={showFileViewer}
+        onClose={() => {
+          setShowFileViewer(false);
+          setSelectedFile(null);
+        }}
+      />
     </div>
   );
 };
