@@ -9,6 +9,7 @@ import { LecturerDashboard } from "@/components/LecturerDashboard";
 import { EnhancedFileManagement } from "@/components/EnhancedFileManagement";
 import { ImprovedChatSystem } from "@/components/ImprovedChatSystem";
 import { CollaborationHub } from "@/components/CollaborationHub";
+import Feeds from "./Feeds";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -355,6 +356,8 @@ const Index = () => {
 
   const renderCurrentPage = () => {
     switch (currentPage) {
+      case "feeds":
+        return <Feeds />;
       case "dashboard":
         return userType === "student" ? (
           <StudentDashboard />

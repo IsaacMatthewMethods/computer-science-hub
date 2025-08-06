@@ -590,6 +590,129 @@ export type Database = {
           },
         ]
       }
+      post_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          post_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          post_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      post_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      post_media: {
+        Row: {
+          created_at: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          filename: string
+          id: string
+          mime_type: string | null
+          post_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          filename: string
+          id?: string
+          mime_type?: string | null
+          post_id: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          post_id?: string
+        }
+        Relationships: []
+      }
+      posts: {
+        Row: {
+          author_id: string
+          content: string | null
+          course_id: string | null
+          created_at: string
+          id: string
+          is_public: boolean
+          link_description: string | null
+          link_title: string | null
+          link_url: string | null
+          post_type: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content?: string | null
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          link_description?: string | null
+          link_title?: string | null
+          link_url?: string | null
+          post_type?: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string | null
+          course_id?: string | null
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          link_description?: string | null
+          link_title?: string | null
+          link_url?: string | null
+          post_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null

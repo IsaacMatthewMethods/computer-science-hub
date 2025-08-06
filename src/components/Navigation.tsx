@@ -22,6 +22,7 @@ import {
   Files,
   User,
   LogOut,
+  Rss,
 } from "lucide-react";
 
 interface NavigationProps {
@@ -38,6 +39,7 @@ export function Navigation({ userType, userName, onNavigate, currentPage, onSign
   const navItems = userType === "student" 
     ? [
         { id: "dashboard", label: "Dashboard", icon: Home },
+        { id: "feeds", label: "Feeds", icon: Rss },
         { id: "resources", label: "Resources", icon: BookOpen },
         { id: "chat", label: "Chat", icon: MessageCircle },
         { id: "collaborate", label: "Collaborate", icon: Users },
@@ -45,6 +47,7 @@ export function Navigation({ userType, userName, onNavigate, currentPage, onSign
       ]
     : [
         { id: "dashboard", label: "Dashboard", icon: Home },
+        { id: "feeds", label: "Feeds", icon: Rss },
         { id: "resources", label: "Share Resources", icon: Upload },
         { id: "students", label: "Students", icon: Users },
         { id: "chat", label: "Messages", icon: MessageCircle },
