@@ -1,38 +1,72 @@
-# Welcome to your Lovable project
+# Computer Science Hub - Kaduna Polytechnic
 
-## Project info
+This is a collaborative platform for computer science students and lecturers at Kaduna Polytechnic. It allows for the sharing and management of academic materials.
 
-**URL**: https://lovable.dev/projects/5b554691-f894-4700-a0cc-20450da8639f
+## Table of Contents
 
-## How can I edit this code?
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+- [Project Structure](#project-structure)
+- [Page Navigation Map](#page-navigation-map)
+- [Making Changes](#making-changes)
 
-There are several ways of editing your application.
+## Prerequisites
 
-**Use Lovable**
+Before you begin, ensure you have the following software installed on your machine.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/5b554691-f894-4700-a0cc-20450da8639f) and start prompting.
+- **Git:** A version control system for tracking changes in source code.
+  - [Download Git](https://git-scm.com/downloads)
+- **Node.js:** A JavaScript runtime environment. This project was built using Node.js, and it comes with `npm` (Node Package Manager) which is required to install project dependencies.
+  - Download Node.js (LTS version recommended)
+- **A Code Editor:** Any code editor will work, but we recommend Visual Studio Code.
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+Follow these steps to get your local development environment up and running.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+**1. Clone the Repository**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+First, clone the project repository from GitHub to your local machine.
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone <YOUR_REPOSITORY_URL>
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Replace `<YOUR_REPOSITORY_URL>` with the actual URL of your Git repository.
 
-# Step 3: Install the necessary dependencies.
-npm i
+**2. Navigate to the Project Directory**
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```sh
+cd computer-science-hub
+```
+
+**3. Install Dependencies**
+
+Install all the necessary packages required for the project using npm. This command reads the `package.json` file and installs all the libraries listed under `dependencies` and `devDependencies`.
+
+```sh
+npm install
+```
+
+**4. Run the Application**
+
+This project has two parts that need to be running simultaneously: the backend server and the frontend application. You should open two separate terminal windows for this.
+
+**In your first terminal, start the backend server:**
+
+The backend server handles file operations like uploads, downloads, and listings.
+
+```sh
+node server/server.js
+```
+
+You should see a message confirming that the server is running, typically on `http://localhost:3001`.
+
+**In your second terminal, start the frontend development server:**
+
+The frontend is a React application built with Vite.
+
+```sh
 npm run dev
 ```
 
@@ -59,15 +93,3 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/5b554691-f894-4700-a0cc-20450da8639f) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
